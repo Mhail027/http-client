@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include "helper.h"
 #include "buffer.h"
+#include "parson.h"
 
 void compute_message(char *message, const char *line)
 {
@@ -98,7 +99,8 @@ char *receive_from_server(int sockfd)
     } while (1);
 
     size_t total = content_length + (size_t) header_end;
-    while (buffer.size < total) {
+    while (buffer.size < total)
+    {
         int bytes = read(sockfd, response, BUFLEN);
 
         DIE(bytes < 0, "ERROR reading response from socket");
@@ -119,15 +121,17 @@ char *basic_extract_json_response(char *str)
     return strstr(str, "{\"");
 }
 
-char *extract_from_http_response(char* response, char *field)
+char *extract_from_http_response(const char *const response, char *field)
 {
     char *start_line = strstr(response, field);
-    if (!start_line) {
+    if (!start_line)
+    {
         return NULL;
     }
 
     char *end_line = strstr(start_line, "\r\n");
-    if (!start_line) {
+    if (!start_line)
+    {
         return NULL;
     }
 
@@ -144,31 +148,32 @@ char *extract_from_http_response(char* response, char *field)
     return value;
 }
 
-char *extract_from_json_response(char* response, char *field)
+char *get_field_from_json_string(char* json_string, char *field_name)
 {
-    char *start_line = strstr(response, field);
-    if (!start_line) {
+    JSON_Value *root_value;
+    JSON_Object *root_object;
+    const char *field_value;
+    char *field_value_copy;
+
+    root_value = json_parse_string(json_string);
+    DIE(root_value == NULL, "json_parse_string() failed\n");
+
+    root_object = json_value_get_object(root_value);
+    DIE(root_object == NULL, "json_value_get_object() failed\n");
+
+    field_value = json_object_get_string(root_object, field_name);
+    if (!field_value) {
         return NULL;
     }
+ 
+    field_value_copy = (char *) malloc(sizeof(char) * 
+        (strlen(field_value) + 1));
+    DIE(!field_value_copy, "malloec() failed\n");
 
-    int offset = strlen(field) +
-        (start_line[strlen(field) + 1] == '\"' ? 2 : 1);  /* +2 for ":\"" */
+    memcpy(field_value_copy, field_value, strlen(field_value) + 1);
+    json_value_free(root_value);
 
-    char *end_line = strpbrk(start_line + offset, "\",}");
-    if (!start_line) {
-        return NULL;
-    }
-
-    /* Allocate memory. */
-    int len = end_line - start_line - offset + 1; /* +1 for the null char */
-    char *value = malloc(len);
-    DIE(!value, "malloc() failed\n");
-
-    /* Coppy the value. */
-    memcpy(value, start_line + offset, len - 1);
-    value[len - 1] = '\0';
-
-    return value;
+    return field_value_copy;
 }
 
 void read_line(char *buff, int len)
@@ -183,22 +188,59 @@ void read_line(char *buff, int len)
 	buff[strlen(buff) - 1] = '\0';
 }
 
-void basic_print_http_response(char *response)
-{
-    char *resp_payload, *json_value, *ret;
+void get_http_response_code(const char *const response, char *const code) {
+    char *start;
 
-    resp_payload = basic_extract_json_response(response);
-    if (!resp_payload) {
-        ret = strtok(response, "\n");
-        DIE(ret == NULL, "strtok() failed\n");
-		printf("ERROR: %s\n", response);
-    } else if (strstr(resp_payload, "\"error\"")) {	/* Error */
-		json_value = extract_from_json_response(resp_payload, "\"error\"");
-		printf("ERROR: %s\n", json_value);
-        free(json_value);
-	} else {	/* Success */
-		json_value = extract_from_json_response(resp_payload, "\"message\"");
-		printf("SUCCESS: %s\n", json_value);
-        free(json_value);
+    start = strchr(response, ' ');
+    DIE(start == NULL, "Wrong format for the http response.\n");
+    start++;
+
+    memcpy(code, start, 3);
+    code[4] = '\0';
+}
+
+int basic_print_http_response_with_content(char *const response)
+{
+    char *response_payload, *message;
+
+    /* Do we have something in payload? */
+    response_payload = basic_extract_json_response(response);
+    if (strstr(response_payload, "\"error\":"))
+    {
+		message = get_field_from_json_string(response_payload, "error");
+
+		printf("ERROR: %s\n", message);
+        free(message);
+        return 0;
 	}
+    else if (strstr(response_payload, "\"message\":"))
+    {
+		message = get_field_from_json_string(response_payload, "message");
+
+        printf("SUCCESS: %s\n", message);
+        free(message);
+        return 0;
+	}
+
+    return -1;
+}
+
+void print_http_response(char *const response, const char *const success_msg)
+{
+    char code[4];
+    
+    /* Make a discussion after code. */
+    get_http_response_code(response, code);
+    if (code[0] == '2')
+    {
+        printf("SUCCESS: %s\n", success_msg);
+    }
+    else if (code[0] == '4')
+    {
+        printf("ERROR: You did something wrong. (code %s)\n", code);
+    }
+    else if (code[0] == '5')
+    {
+        printf("ERROR: Internal server error (code %s)\n",  code);
+    }
 }

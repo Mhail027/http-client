@@ -41,7 +41,7 @@ char *basic_extract_json_response(char *str);
 
 /* Extract and returns the value of a field from a HTTP
  * response. The given string are not modified. */
-char *extract_from_http_response(char* response, char *field);
+char *extract_from_http_response(const char *const response, char *field);
 
 /* Extract and returns the value of a field from a JSON
  * response. The given string are not modified. 
@@ -52,7 +52,15 @@ char *extract_from_json_response(char* response, char *field);
 /* Read a line from stdin and remove the new line character. */
 void read_line(char *buff, int len);
 
-/* Prin the main message from json's payload of an http response. */
-void basic_print_http_response(char *response);
+/****
+ * Print the value of the error/message field from json's payload 
+ * of an http response.
+ * @return: 0 => response payload has a field named error or message
+ *			-1 => else
+ */
+int basic_print_http_response_with_content(char *const response);
+
+/* Print a message corresonding with the http code of the response. */
+void print_http_response(char *const response, const char *const success_msg);
 
 #endif

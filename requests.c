@@ -58,16 +58,15 @@ static void add_content_length(char *message, unsigned long len, char *line)
     compute_message(message, line);
 }
 
-
-char *compute_get_request(char *ip, int port, char *url,
-						  char *cookie, char *token)
+static char *compute_basic_request(char *method, char *ip, int port,
+								   char *url, char *cookie, char *token)
 {
 	char *message = calloc(BUFLEN, sizeof(char));
 	char *line = calloc(LINELEN, sizeof(char));
 	int ret;
 
 	/* Write the method name, URL and protocol type. */
-	ret = sprintf(line, "GET %s HTTP/1.1", url);
+	ret = sprintf(line, "%s %s HTTP/1.1", method, url);
 	DIE(ret < 0, "sprintf() failed\n");
 	compute_message(message, line);
 	
@@ -85,6 +84,18 @@ char *compute_get_request(char *ip, int port, char *url,
 	memset(line, 0, LINELEN);
 	free(line);
 	return message;
+}
+
+char *compute_get_request(char *ip, int port, char *url,
+						  char *cookie, char *token)
+{
+	return compute_basic_request("GET", ip, port, url, cookie, token);
+}
+
+char *compute_delete_request(char *ip, int port, char *url,
+						  	 char *cookie, char *token)
+{
+	return compute_basic_request("DELETE", ip, port, url, cookie, token);
 }
 
 char *compute_post_request(char *ip, int port, char *url, char* content_type,
@@ -120,36 +131,3 @@ char *compute_post_request(char *ip, int port, char *url, char* content_type,
 	return message;
 }
 
-char *compute_post_request_1(char *ip, int port, char *url, char* content_type,
-						   char *content, char *cookie_1, char *cookie_2, char *token)
-{
-	char *message = calloc(BUFLEN, sizeof(char));
-	char *line = calloc(LINELEN, sizeof(char));
-	int ret;
-
-	/* Write the method name, URL and protocol type. */
-	ret = sprintf(line, "POST %s HTTP/1.1", url);
-	DIE(ret < 0, "sprintf() failed\n");
-	compute_message(message, line);
-
-	/* Add host, content headers, cookie and token. */
-	add_host(message, ip, port, line);
-	add_content_type(message, content_type, line);
-	add_content_length(message, strlen(content), line);
-	add_cookie(message, cookie_1, line);
-	add_cookie(message, cookie_2, line);
-	add_token(message, token, line);
-
-	/* Close connection after this message. */
-    compute_message(message, "Connection: close");
-
-	/* Add new line at end of header */
-	compute_message(message, "");
-
-	/* Add the actual payload data */
-	strcat(message, content);
-
-	memset(line, 0, LINELEN);
-	free(line);
-	return message;
-}
