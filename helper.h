@@ -2,6 +2,7 @@
 #define _HELPER_
 
 #include <errno.h>
+#include "parson.h"
 
 #define BUFLEN 4096
 #define LINELEN 1000
@@ -37,7 +38,7 @@ void send_to_server(int sockfd, char *message);
 char *receive_from_server(int sockfd);
 
 /* Extracts and returns a JSON from a server response. */
-char *basic_extract_json_response(char *str);
+char *basic_extract_json_response(const char *const str);
 
 /* Extract and returns the value of a field from a HTTP
  * response. The given string are not modified. */
@@ -57,10 +58,25 @@ void read_line(char *buff, int len);
  * of an http response.
  * @return: 0 => response payload has a field named error or message
  *			-1 => else
- */
+ ****/
 int basic_print_http_response_with_content(char *const response);
 
 /* Print a message corresonding with the http code of the response. */
-void print_http_response(char *const response, const char *const success_msg);
+int basic_print_http_response(
+	char *const response, const char *const success_msg
+);
+
+/* Get value of a field from a json string. */
+char *get_field_from_json_string(char* json_string, char *field_name);
+
+/* Get the json of a value from a string. If can not do this, stop
+ * the program. */
+JSON_Value *get_json_val_from_string(const char *const response);
+
+/* Get an array a json value. The array is foudn at the given field.
+ * If can not do this, stop the program. */
+JSON_Array *get_json_array_from_json_val(
+	JSON_Value *value, const char *const field_name
+);
 
 #endif

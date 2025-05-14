@@ -12,247 +12,6 @@
 #include "parson.h"
 #include "client.h"
 
-// void add_user(const int sockfd)
-// {
-// 	char username[LINELEN];
-// 	char password[LINELEN];
-// 	char content[LINELEN];
-// 	char *msg, *response;
-// 	int ret;
-
-// 	/* Get the username. */
-// 	printf("username=");
-// 	read_line(username, LINELEN);
-
-// 	/* Get the pasword. */
-// 	printf("password=");
-// 	read_line(password, LINELEN);
-
-// 	/* Create the payload. */
-// 	ret = snprintf(content, LINELEN, ADD_USER_CONTENT_FORMAT,
-// 			username, password
-// 	);
-// 	DIE(ret < 0, "snprintf() failed\n");
-	
-// 	/* Create the request. */
-// 	msg = compute_post_request(SRV_IP, SRV_PORT, ADD_USER_URL,
-// 				ADD_USER_CONTENT_TYPE, content, cookie, NULL
-// 	);
-
-// 	/* Communicate with the server. */
-// 	send_to_server(sockfd, msg);
-// 	response = receive_from_server(sockfd);
-
-// 	/* How did the server answer? */
-// 	basic_print_http_response(response, NULL);
-
-// 	/* Free the memory. */
-// 	free(msg);
-// 	free(response);
-// }
-
-// void logout_admin(const int sockfd)
-// {
-// 	char *msg, *response, *resp_payload;
-	
-// 	/* Create the request. */
-// 	msg = compute_get_request(SRV_IP, SRV_PORT, LOGOUT_ADMIN_URL,
-// 				cookie, NULL);
-
-// 	/* Communicate with the server. */
-// 	send_to_server(sockfd, msg);
-// 	response = receive_from_server(sockfd);
-
-// 	/* How did the server answer? */
-// 	resp_payload = basic_extract_json_response(response);
-// 	if (resp_payload && !strstr(resp_payload, "\"error\"")) {
-// 		free(cookie);
-// 		//free(token);
-
-// 		cookie = NULL;
-// 		//token = NULL;
-// 	}
-// 	basic_print_http_response(response, NULL);
-
-// 	/* Free the memory. */
-// 	free(msg);
-// 	free(response);
-// }
-
-// void login(const int sockfd)
-// {
-// 	char admin_username[LINELEN];
-// 	char username[LINELEN];
-// 	char password[LINELEN];
-// 	char content[LINELEN];
-// 	char *msg, *response;
-// 	int ret;
-
-// 	/* Get the admin username. */
-// 	printf("admin_username=");
-// 	read_line(admin_username, LINELEN);
-
-// 	/* Get the username. */
-// 	printf("username=");
-// 	read_line(username, LINELEN);
-
-// 	/* Get the pasword. */
-// 	printf("password=");
-// 	read_line(password, LINELEN);
-
-// 	/* Create the payload. */
-// 	ret = snprintf(content, LINELEN, LOGIN_CONTENT_FORMAT,
-// 			admin_username, username, password
-// 	);
-// 	DIE(ret < 0, "snprintf() failed\n");
-	
-// 	/* Create the request. */
-// 	msg = compute_post_request(SRV_IP, SRV_PORT, LOGIN_URL,
-// 				LOGIN_CONTENT_TYPE, content, cookie, NULL
-// 	);
-
-// 	/* Communicate with the server. */
-// 	send_to_server(sockfd, msg);
-// 	response = receive_from_server(sockfd);
-
-// 	/* How did the server answer? */
-// 	get_new_cookie(response);
-// 	basic_print_http_response(response, NULL);
-
-// 	/* Free the memory. */
-// 	free(msg);
-// 	free(response);
-// }
-
-// void logout(const int sockfd)
-// {
-// 	char *msg, *response, *resp_payload;
-	
-// 	/* Create the request. */
-// 	msg = compute_get_request(SRV_IP, SRV_PORT, LOGOUT_URL,
-// 				cookie, NULL);
-
-// 	/* Communicate with the server. */
-// 	send_to_server(sockfd, msg);
-// 	response = receive_from_server(sockfd);
-
-// 	/* How did the server answer? */
-// 	resp_payload = basic_extract_json_response(response);
-// 	if (resp_payload && !strstr(resp_payload, "\"error\"")) {
-// 		free(cookie);
-// 		//free(token);
-
-// 		cookie = NULL;
-// 		//token = NULL;
-// 	}
-// 	basic_print_http_response(response, NULL);
-
-// 	/* Free the memory. */
-// 	free(msg);
-// 	free(response);
-// }
-
-// void get_access(const int sockfd)
-// {
-// 	char *msg, *response, *resp_payload;
-	
-// 	/* Create the request. */
-// 	msg = compute_get_request(SRV_IP, SRV_PORT, GET_ACCESS_URL,
-// 				cookie, NULL);
-
-// 	/* Communicate with the server. */
-// 	send_to_server(sockfd, msg);
-// 	response = receive_from_server(sockfd);
-
-// 	/* How did the server answer? */
-// 	resp_payload = basic_extract_json_response(response);
-// 	if (resp_payload && strstr(resp_payload, "\"token\"")) {
-// 		token = extract_from_json_response(resp_payload, "\"token\"");
-// 		printf("SUCCESS: Received the JWT token.\n");
-// 	} else {
-// 		basic_print_http_response(response, NULL);
-// 	}
-
-// 	/* Free the memory. */
-// 	free(msg);
-// 	free(response);
-// }
-
-// void get_users(const int sockfd)
-// {
-// 	char *msg, *response, *resp_payload, *pretty_payload;
-// 	JSON_Value *root_val;
-// 	JSON_Array *users;
-// 	JSON_Object *root_obj, *user_obj;
-	
-// 	/* Create the request. */
-// 	msg = compute_get_request(SRV_IP, SRV_PORT, GET_USERS_URL,
-// 				cookie, NULL);
-
-// 	/* Communicate with the server. */
-// 	send_to_server(sockfd, msg);
-// 	response = receive_from_server(sockfd);
-
-// 	/* How did the server answer? */
-// 	resp_payload = basic_extract_json_response(response);
-// 	if (resp_payload && !strstr(resp_payload, "\"error\"")) {
-// 		root_val = json_parse_string(resp_payload);
-// 		DIE(root_val == NULL, "json_parse_string() failed\n");
-
-// 		root_obj = json_value_get_object(root_val);
-// 		DIE(root_obj == NULL, "json_value_get_object() failed\n");
-
-// 		printf("SUCCESS: Users list \n");
-
-//     	users = json_object_get_array(root_obj, "movies");
-
-// 	    int size = json_array_get_count(users);
-//     	for (int i = 0; i < size; i++) {
-//         	user_obj = json_array_get_object(users, i);
-
-//             printf("#%d %s\n", i + 1, json_object_get_string(user_obj, "title"));
-//         }
-
-// 		json_value_free(root_val);
-// 	} else {
-// 		basic_print_http_response(response, NULL);
-// 	}
-
-// 	/* Free the memory. */
-// 	free(msg);
-// 	free(response);
-// }
-
-// void delete_user(const int sockfd)
-// {
-// 	char *msg, *response;
-// 	char username[LINELEN];
-// 	char url[2 * LINELEN];
-// 	int ret;
-	
-// 	/* Get the username. */
-// 	printf("username=");
-// 	read_line(username, LINELEN);
-
-// 	/* Complete the url. */
-// 	ret = snprintf(url, sizeof(url), DELETE_USER_URL, username);
-// 	DIE(ret < 0, "snprintf() failed\n");
-
-// 	/* Create the request. */
-// 	msg = compute_delete_request(SRV_IP, SRV_PORT, url, cookie, NULL);
-
-// 	/* Communicate with the server. */
-// 	send_to_server(sockfd, msg);
-// 	response = receive_from_server(sockfd);
-
-// 	/* How did the server answer? */
-// 	basic_print_http_response(response, NULL);
-
-// 	/* Free the memory. */
-// 	free(msg);
-// 	free(response);
-// }
-
 // void get_movies(const int sockfd)
 // {
 // 	char *msg, *response, *resp_payload, *pretty_payload;
@@ -294,7 +53,7 @@
 
 // 		json_value_free(root_val);
 // 	} else {
-// 		basic_print_http_response(response, NULL);
+// 		basic_basic_print_http_response(response, NULL);
 // 	}
 
 // 	/* Free the memory. */
@@ -340,7 +99,7 @@
 // 		free(pretty_payload);
 // 		json_value_free(root_val);
 //     } else {
-// 		basic_print_http_response(response, NULL);
+// 		basic_basic_print_http_response(response, NULL);
 // 	}
 
 // 	/* Free the memory. */
@@ -390,7 +149,7 @@
 // 	response = receive_from_server(sockfd);
 
 // 	/* How did the server answer? */
-// 	basic_print_http_response(response, "Movie added successfully.");
+// 	basic_basic_print_http_response(response, "Movie added successfully.");
 
 // 	/* Free the memory. */
 // 	free(msg);
@@ -404,26 +163,58 @@ void init_client(client_t *client)
 	client->token = NULL;
 }
 
-void get_new_cookie(client_t *const client, const char *const response) {
+void get_new_token(client_t *const client, const char *const response)
+{
+	char *response_payload, *token;
+
+	response_payload = basic_extract_json_response(response);
+	token = get_field_from_json_string(response_payload, "token");
+	if (token) {
+		if (client->token) {
+			free(client->token);
+		}
+		client->token = token;
+	}
+}
+
+void get_new_cookie(client_t *const client, const char *const response)
+{	
 	if (strstr(response, "\r\nSet-Cookie:")) {
+		if (client->cookie) {
+			free(client->cookie);
+		}
 		client->cookie = extract_from_http_response(response, "Set-Cookie");
 	}
 }
 
-char *get_login_admin_request() {
+void delete_client_info(client_t *const client, const char *const response) 
+{
+	char *resp_payload;
+
+	resp_payload = basic_extract_json_response(response);
+	if (resp_payload && !strstr(resp_payload, "\"error\":")) {
+		free(client->cookie);
+		client->cookie = NULL;
+
+		free(client->token);
+		client->token = NULL;
+	}
+}
+
+char *get_login_admin_request(const client_t *const client)
+{
 	char username[LINELEN];
 	char password[LINELEN];
-	char payload[LINELEN];
-	char *request;
+	char payload[3 * LINELEN];
 	int ret;
 
 	/* Get the username. */
 	printf("username=");
-	read_line(username, LINELEN);
+	read_line(username, sizeof(username));
 
 	/* Get the pasword. */
 	printf("password=");
-	read_line(password, LINELEN);
+	read_line(password, sizeof(password));
 
 	/* Create the payload. */
 	ret = snprintf(payload, sizeof(payload), LOGIN_ADMIN_CONTENT_FORMAT,
@@ -432,11 +223,9 @@ char *get_login_admin_request() {
 	DIE(ret < 0, "snprintf() failed\n");
 	
 	/* Create the request. */
-	request = compute_post_request(SRV_IP, SRV_PORT, LOGIN_ADMIN_URL,
-				LOGIN_ADMIN_CONTENT_TYPE, payload, NULL, NULL
+	return compute_post_request(SRV_IP, SRV_PORT, LOGIN_ADMIN_URL,
+			LOGIN_ADMIN_CONTENT_TYPE, payload, client->cookie, client->token
 	);
-
-	return request;
 }
 
 void login_admin(client_t *const client)
@@ -444,7 +233,7 @@ void login_admin(client_t *const client)
 	char *request, *response;
 	
 	/* Create the request. */
-	request = get_login_admin_request();
+	request = get_login_admin_request(client);
 
 	/* Communicate with the server. */
 	send_to_server(client->sock_fd, request);
@@ -453,7 +242,7 @@ void login_admin(client_t *const client)
 	/* How did the server answer? */
 	get_new_cookie(client, response);
 	if (basic_print_http_response_with_content(response) == -1) {
-		print_http_response(response, "Admin logged in successfully.");
+		basic_print_http_response(response, "Admin logged in successfully.");
 	}
 
 	/* Free the memory. */
@@ -461,7 +250,270 @@ void login_admin(client_t *const client)
 	free(response);
 }
 
-void stop_program(client_t *const client) {
+void logout_admin(client_t *const client)
+{
+	char *request, *response;
+
+	/* Create the request. */
+	request = compute_get_request(SRV_IP, SRV_PORT, LOGOUT_ADMIN_URL,
+				client->cookie, NULL);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	delete_client_info(client, response);
+	if (basic_print_http_response_with_content(response) == -1) {
+		basic_print_http_response(response, "Admin logged out successfully.");
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+char *get_login_request(const client_t *const client)
+{
+	char admin_username[LINELEN];
+	char username[LINELEN];
+	char password[LINELEN];
+	char payload[4 * LINELEN];
+	int ret;
+
+	/* Get the admin username. */
+	printf("admin_username=");
+	read_line(admin_username, sizeof(admin_username));
+
+	/* Get the username. */
+	printf("username=");
+	read_line(username, sizeof(username));
+
+	/* Get the pasword. */
+	printf("password=");
+	read_line(password, sizeof(password));
+
+	/* Create the payload. */
+	ret = snprintf(payload, sizeof(payload), LOGIN_CONTENT_FORMAT,
+			admin_username, username, password
+	);
+	DIE(ret < 0, "snprintf() failed\n");
+	
+	/* Create the request. */
+	return compute_post_request(SRV_IP, SRV_PORT, LOGIN_URL,
+			LOGIN_CONTENT_TYPE, payload, client->cookie, client->token
+	);
+}
+
+void login(client_t *const client)
+{
+	char *request, *response;
+	
+	/* Create the request. */
+	request = get_login_request(client);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	get_new_cookie(client,response);
+	if (basic_print_http_response_with_content(response) == -1) {
+		basic_print_http_response(response, "User logged in successfully.");
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+void logout(client_t *const client)
+{
+	char *request, *response;
+	
+	/* Create the request. */
+	request = compute_get_request(SRV_IP, SRV_PORT, LOGOUT_URL,
+			client->cookie, client->token
+	);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	delete_client_info(client, response);
+	if (basic_print_http_response_with_content(response) == -1) {
+		basic_print_http_response(response, "User logged out successfully.");
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+char *get_add_user_request(const client_t *const client)
+{
+	char username[LINELEN];
+	char password[LINELEN];
+	char payload[3 * LINELEN];
+	int ret;
+
+	/* Get the username. */
+	printf("username=");
+	read_line(username, sizeof(username));
+
+	/* Get the pasword. */
+	printf("password=");
+	read_line(password, sizeof(password));
+
+	/* Create the payload. */
+	ret = snprintf(payload, sizeof(payload), ADD_USER_CONTENT_FORMAT,
+			username, password
+	);
+	DIE(ret < 0, "snprintf() failed\n");
+	
+	/* Create the request. */
+	return compute_post_request(SRV_IP, SRV_PORT, ADD_USER_URL,
+			ADD_USER_CONTENT_TYPE, payload, client->cookie, client->token
+	);
+}
+
+void add_user(const client_t *const client)
+{
+	char *request, *response;
+
+	/* Create the request. */
+	request = get_add_user_request(client);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	if (basic_print_http_response_with_content(response) == -1) {
+		basic_print_http_response(response,
+			"The usser was added successfully.");
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+char *get_delete_user_request(const client_t *const client)
+{
+	char username[LINELEN];
+	char url[2 * LINELEN];
+	int ret;
+
+	/* Get the username. */
+	printf("username=");
+	read_line(username, sizeof(username));
+
+	/* Complete the url. */
+	ret = snprintf(url, sizeof(url), DELETE_USER_URL, username);
+	DIE(ret < 0, "snprintf() failed\n");
+
+	/* Create the request. */
+	return compute_delete_request(SRV_IP, SRV_PORT, url,
+			client->cookie, client->token);
+
+}
+
+void delete_user(const client_t *const client)
+{
+	char *request, *response;
+
+	/* Create the request. */
+	request = get_delete_user_request(client);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	if (basic_print_http_response_with_content(response) == -1) {
+		basic_print_http_response(response,
+			"The usser was deleted successfully.");
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+void print_get_users_response(const char* response)
+{
+	JSON_Value *json_value;
+	JSON_Array *users_array;
+	JSON_Object *user_object;
+	const char *username, *password;
+	size_t size;
+
+	json_value = get_json_val_from_string(
+		basic_extract_json_response(response)
+	);
+    users_array = get_json_array_from_json_val(json_value, "users");
+
+	size = json_array_get_count(users_array);
+    for (int i = 0; i < size; i++) {
+        user_object = json_array_get_object(users_array, i);
+		username = json_object_get_string(user_object, "username");
+		password = json_object_get_string(user_object, "password");
+
+        printf("#%d %s:%s\n", i + 1, username, password);
+    }
+
+	json_value_free(json_value);
+}
+
+void get_users(const client_t *const client)
+{
+	char *request, *response;
+	
+	/* Create the request. */
+	request = compute_get_request(SRV_IP, SRV_PORT, GET_USERS_URL,
+			client->cookie, client->token);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	if (basic_print_http_response(response, "Users list") == 2) {
+		print_get_users_response(response);
+	} 
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+void get_access(client_t *const client)
+{
+	char *request, *response;
+	
+	/* Create the request. */
+	request = compute_get_request(SRV_IP, SRV_PORT,
+			GET_ACCESS_URL,	client->cookie, client->token
+	);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */;
+	if (basic_print_http_response_with_content(response) == -1) {
+		basic_print_http_response(response, "Received THE JWT token.");
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+void stop_program(client_t *const client)
+{
 	int ret;
 
 	if (client->cookie)
@@ -481,7 +533,7 @@ void stop_program(client_t *const client) {
 	exit(0);
 }
 
-bool handle_user_command(client_t *const client, const char *command)
+bool handle_client_command(client_t *const client, const char *command)
 {
 	if (!strcmp(command, LOGIN_ADMIN_CMD))
 	{
@@ -490,37 +542,37 @@ bool handle_user_command(client_t *const client, const char *command)
 	}
 	else if (!strcmp(command, LOGIN_CMD))
 	{
-		//login(sockfd);
+		login(client);
 		return true;
 	}
 	else if (!strcmp(command, ADD_USER_CMD))
 	{
-		//add_user(sockfd);
+		add_user(client);
 		return true;
 	}
 	else if (!strcmp(command, DELETE_USER_CMD))
 	{
-		//delete_user(sockfd);
+		delete_user(client);
 		return true;
 	}
 	else if (!strcmp(command, GET_USERS_CMD))
 	{
-		//get_users(sockfd);
+		get_users(client);
 		return true;
 	}
 	else if (!strcmp(command, GET_ACCESS_CMD))
 	{
-		//get_access(sockfd);
+		get_access(client);
 		return true;
 	}
 	else if (!strcmp(command, LOGOUT_ADMIN_CMD))
 	{
-		//logout_admin(sockfd);
+		logout_admin(client);
 		return true;
 	}
 	else if (!strcmp(command, LOGOUT_CMD))
 	{
-		//logout(sockfd);
+		logout(client);
 		return true;
 	}
 
@@ -601,7 +653,7 @@ void handle_command(client_t *const client) {
 			SOCK_STREAM, 0);
 
 	/* Execute the command. */
-	if (handle_user_command(client, command))
+	if (handle_client_command(client, command))
 	{
 		goto handled_command;
 	}
