@@ -59,7 +59,7 @@ typedef struct client_t {
 #define ADD_MOVIE_TO_COLLECTION_URL											\
 	"/api/v1/tema/library/collections/%s/movies" /* coll id*/
 #define DELETE_MOVIE_FROM_COLLECTION_URL									\
-	"/api/v1/tema/library/collections/%s/movies/%d" /* coll id, movie id*/
+	"/api/v1/tema/library/collections/%s/movies/%s" /* coll id, movie id*/
 
 /* HTTP Content Types*/
 #define LOGIN_ADMIN_CONTENT_TYPE "application/json"
@@ -67,8 +67,8 @@ typedef struct client_t {
 #define LOGIN_CONTENT_TYPE "application/json"
 #define ADD_MOVIE_CONTENT_TYPE "application/json"
 #define UPDATE_MOVIE_CONTENT_TYPE "application/json"
-#define ADD_COLLECTION_TYPE "application/json"
-#define ADD_MOVIE_TO_COLLECTION_TYPE "application/json"
+#define ADD_COLLECTION_CONTENT_TYPE "application/json"
+#define ADD_MOVIE_TO_COLLECTION_CONTENT_TYPE "application/json"
 
 /* HTTP Content formats */
 #define LOGIN_ADMIN_CONTENT_FORMAT											\
@@ -97,17 +97,17 @@ typedef struct client_t {
 #define UPDATE_MOVIE_CONTENT_FORMAT											\
 	"{"																		\
 		"\"title\":\"%s\","													\
-		"\"year\":\"%d\","													\
-		"\"description\":\"%s\""											\
-		"\"rating\":\"%f\""													\
+		"\"year\":%s,"														\
+		"\"description\":\"%s\","											\
+		"\"rating\":%s"														\
 	"}"
 #define ADD_COLLECTION_CONTENT_FORMAT										\
 	"{"																		\
-		"\"title\":\"%s\","													\
+		"\"title\":\"%s\""													\
 	"}"
 #define ADD_MOVIE_TO_COLLECTION_CONTENT_FORMAT								\
 	"{"																		\
-		"\"id\":\"%d\","													\
+		"\"id\":%s"															\
 	"}"
 
 #endif

@@ -16,5 +16,8 @@ char *compute_get_request(char *ip, int port, char *url,
 char *compute_post_request(char *ip, int port, char *url, char* content_type,
                            char *content, char *cookie, char *token);
 
-
+/* Computes and returns a PUT request string.
+ * (Cookie and token can be NULL if not needed) */
+char *compute_put_request(char *ip, int port, char *url, char* content_type,
+						   char *content, char *cookie, char *token);
 #endif

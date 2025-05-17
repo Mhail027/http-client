@@ -12,150 +12,6 @@
 #include "parson.h"
 #include "client.h"
 
-// void get_movies(const int sockfd)
-// {
-// 	char *msg, *response, *resp_payload, *pretty_payload;
-// 	const char *id, *title;
-// 	JSON_Value *root_val;
-// 	JSON_Array *movies;
-// 	JSON_Object *root_obj, *movie_obj;
-
-	
-// 	/* Create the request. */
-// 	msg = compute_get_request(SRV_IP, SRV_PORT, GET_MOVIES_URL,
-// 				NULL, token);
-
-// 	/* Communicate with the server. */
-// 	send_to_server(sockfd, msg);
-// 	response = receive_from_server(sockfd);
-
-// 	/* How did the server answer? */
-// 	resp_payload = basic_extract_json_response(response);
-// 	if (resp_payload && !strstr(resp_payload, "\"error\"")) {
-// 		root_val = json_parse_string(resp_payload);
-// 		DIE(root_val == NULL, "json_parse_string() failed\n");
-
-// 		root_obj = json_value_get_object(root_val);
-// 		DIE(root_obj == NULL, "json_value_get_object() failed\n");
-
-// 		printf("SUCCESS: Movies list \n");
-
-//     	movies = json_object_get_array(root_obj, "movies");
-
-// 	    int size = json_array_get_count(movies);
-//     	for (int i = 0; i < size; i++) {
-//         	movie_obj = json_array_get_object(movies, i);
-// 			id = json_object_get_string(movie_obj, "id");
-// 			title = json_object_get_string(movie_obj, "title");
-
-// 			printf("#%d %s\n", i + 1, title);
-//         }
-
-// 		json_value_free(root_val);
-// 	} else {
-// 		basic_basic_print_http_response(response, NULL);
-// 	}
-
-// 	/* Free the memory. */
-// 	free(msg);
-// 	free(response);
-// }
-
-// void get_movie(const int sockfd)
-// {
-// 	char *msg, *response, *resp_payload, *pretty_payload;
-// 	char id[LINELEN];
-// 	char url[2 * LINELEN];
-// 	int ret;
-// 	JSON_Value *root_val;
-	
-// 	/* Get the username. */
-// 	printf("id=");
-// 	read_line(id, LINELEN);
-
-// 	/* Complete the url. */
-// 	ret = snprintf(url, sizeof(url), GET_MOVIE_URL, id);
-// 	DIE(ret < 0, "snprintf() failed\n");
-
-// 	/* Create the request. */
-// 	msg = compute_get_request(SRV_IP, SRV_PORT, url,
-// 				NULL, token);
-
-// 	/* Communicate with the server. */
-// 	send_to_server(sockfd, msg);
-// 	response = receive_from_server(sockfd);
-
-// 	/* How did the server answer? */
-// 	resp_payload = basic_extract_json_response(response);
-// 	if (resp_payload && !strstr(resp_payload, "\"error\"")) {
-// 		root_val = json_parse_string(resp_payload);
-// 		DIE(root_val == NULL, "json_parse_string() failed\n");
-
-// 		pretty_payload = json_serialize_to_string_pretty(root_val);
-// 		DIE(pretty_payload == NULL, "json_serialize_to_string_pretty() failed\n");
-
-// 		printf("SUCCESS:\n%s\n", pretty_payload);
-
-// 		free(pretty_payload);
-// 		json_value_free(root_val);
-//     } else {
-// 		basic_basic_print_http_response(response, NULL);
-// 	}
-
-// 	/* Free the memory. */
-// 	free(msg);
-// 	free(response);
-// }
-
-// void add_movie(const int sockfd)
-// {
-// 	char *msg, *response;
-// 	char title[LINELEN];
-// 	char year[LINELEN];
-// 	char description[LINELEN];
-// 	char rating[LINELEN];
-// 	char content[LINELEN];
-// 	int ret;
-
-// 	/* Get the title. */
-// 	printf("title=");
-// 	read_line(title, LINELEN);
-
-// 	/* Get the year. */
-// 	printf("year=");
-// 	read_line(year, LINELEN);
-
-// 	/* Get the description. */
-// 	printf("description=");
-// 	read_line(description, LINELEN);
-
-// 	/* Get the rating. */
-// 	printf("rating=");
-// 	read_line(rating, LINELEN);
-
-// 	/* Create the payload. */
-// 	ret = snprintf(content, LINELEN, ADD_MOVIE_CONTENT_FORMAT,
-// 			title, year, description, rating
-// 	);
-// 	DIE(ret < 0, "snprintf() failed\n");
-	
-// 	/* Create the request. */
-// 	msg = compute_post_request(SRV_IP, SRV_PORT, ADD_MOVIE_URL,
-// 				ADD_MOVIE_CONTENT_TYPE, content, cookie, token
-// 	);
-
-// 	/* Communicate with the server. */
-// 	send_to_server(sockfd, msg);
-// 	response = receive_from_server(sockfd);
-
-// 	/* How did the server answer? */
-// 	basic_basic_print_http_response(response, "Movie added successfully.");
-
-// 	/* Free the memory. */
-// 	free(msg);
-// 	free(response);
-// }
-
 void init_client(client_t *client)
 {
 	client->sock_fd = -1;
@@ -168,8 +24,9 @@ void get_new_token(client_t *const client, const char *const response)
 	char *response_payload, *token;
 
 	response_payload = basic_extract_json_response(response);
-	token = get_field_from_json_string(response_payload, "token");
-	if (token) {
+	token = get_string_from_json_string(response_payload, "token");
+	if (token)
+	{
 		if (client->token) {
 			free(client->token);
 		}
@@ -192,7 +49,8 @@ void delete_client_info(client_t *const client, const char *const response)
 	char *resp_payload;
 
 	resp_payload = basic_extract_json_response(response);
-	if (resp_payload && !strstr(resp_payload, "\"error\":")) {
+	if (resp_payload && !strstr(resp_payload, "\"error\":"))
+	{
 		free(client->cookie);
 		client->cookie = NULL;
 
@@ -241,7 +99,8 @@ void login_admin(client_t *const client)
 
 	/* How did the server answer? */
 	get_new_cookie(client, response);
-	if (basic_print_http_response_with_content(response) == -1) {
+	if (basic_print_http_response_with_content(response) == -1)
+	{
 		basic_print_http_response(response, "Admin logged in successfully.");
 	}
 
@@ -264,7 +123,8 @@ void logout_admin(client_t *const client)
 
 	/* How did the server answer? */
 	delete_client_info(client, response);
-	if (basic_print_http_response_with_content(response) == -1) {
+	if (basic_print_http_response_with_content(response) == -1)
+	{
 		basic_print_http_response(response, "Admin logged out successfully.");
 	}
 
@@ -318,7 +178,8 @@ void login(client_t *const client)
 
 	/* How did the server answer? */
 	get_new_cookie(client,response);
-	if (basic_print_http_response_with_content(response) == -1) {
+	if (basic_print_http_response_with_content(response) == -1)
+	{
 		basic_print_http_response(response, "User logged in successfully.");
 	}
 
@@ -342,7 +203,8 @@ void logout(client_t *const client)
 
 	/* How did the server answer? */
 	delete_client_info(client, response);
-	if (basic_print_http_response_with_content(response) == -1) {
+	if (basic_print_http_response_with_content(response) == -1)
+	{
 		basic_print_http_response(response, "User logged out successfully.");
 	}
 
@@ -390,7 +252,8 @@ void add_user(const client_t *const client)
 	response = receive_from_server(client->sock_fd);
 
 	/* How did the server answer? */
-	if (basic_print_http_response_with_content(response) == -1) {
+	if (basic_print_http_response_with_content(response) == -1)
+	{
 		basic_print_http_response(response,
 			"The usser was added successfully.");
 	}
@@ -456,12 +319,18 @@ void print_get_users_response(const char* response)
     users_array = get_json_array_from_json_val(json_value, "users");
 
 	size = json_array_get_count(users_array);
-    for (int i = 0; i < size; i++) {
+	if (size == 0)
+	{
+		printf("You do not have users.\n");
+	}
+
+    for (size_t i = 0; i < size; i++)
+	{
         user_object = json_array_get_object(users_array, i);
 		username = json_object_get_string(user_object, "username");
 		password = json_object_get_string(user_object, "password");
 
-        printf("#%d %s:%s\n", i + 1, username, password);
+        printf("#%ld %s:%s\n", i + 1, username, password);
     }
 
 	json_value_free(json_value);
@@ -470,6 +339,7 @@ void print_get_users_response(const char* response)
 void get_users(const client_t *const client)
 {
 	char *request, *response;
+	int ret;
 	
 	/* Create the request. */
 	request = compute_get_request(SRV_IP, SRV_PORT, GET_USERS_URL,
@@ -480,9 +350,15 @@ void get_users(const client_t *const client)
 	response = receive_from_server(client->sock_fd);
 
 	/* How did the server answer? */
-	if (basic_print_http_response(response, "Users list") == 2) {
+	ret = basic_print_http_response_with_content(response);
+	if (ret == -1)
+	{
+		ret = basic_print_http_response(response, "Users list:");
+	}
+	if (ret == 2)
+	{
 		print_get_users_response(response);
-	} 
+	}
 
 	/* Free the memory. */
 	free(request);
@@ -503,8 +379,668 @@ void get_access(client_t *const client)
 	response = receive_from_server(client->sock_fd);
 
 	/* How did the server answer? */;
-	if (basic_print_http_response_with_content(response) == -1) {
+	get_new_token(client, response);
+	if (basic_print_http_response_with_content(response) == -1)
+	{
 		basic_print_http_response(response, "Received THE JWT token.");
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+void print_get_movies_response(const char *response)
+{
+	JSON_Value *json_value;
+	JSON_Array *movies_array;
+	JSON_Object *movie_object;
+	const char *title;
+	size_t id, size;
+
+	json_value = get_json_val_from_string(
+		basic_extract_json_response(response)
+	);
+    movies_array = get_json_array_from_json_val(json_value, "movies");
+
+	size = json_array_get_count(movies_array);
+	if (size == 0)
+	{
+		printf("You do not have movies.\n");
+	}
+
+    for (size_t i = 0; i < size; i++)
+	{
+        movie_object = json_array_get_object(movies_array, i);
+		id = json_object_get_number(movie_object, "id");
+		title = json_object_get_string(movie_object, "title");
+
+        printf("#%lu %s\n", id, title);
+    }
+
+	json_value_free(json_value);
+}
+
+void get_movies(const client_t *const client)
+{
+	char *request, *response;
+	int ret;
+	
+	/* Create the request. */
+	request = compute_get_request(SRV_IP, SRV_PORT, GET_MOVIES_URL,
+				client->cookie, client->token);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	ret = basic_print_http_response_with_content(response);
+	if (ret == -1)
+	{
+		ret = basic_print_http_response(response, "Movies list: ");
+	}
+	if (ret == 2)
+	{
+		print_get_movies_response(response);
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+char *get_get_movie_request(const client_t *const client)
+{
+	char id[LINELEN];
+	char url[2 * LINELEN];
+	int ret;
+
+	/* Get the id */
+	printf("id=");
+	read_line(id, LINELEN);
+
+	/* Complete the url. */
+	ret = snprintf(url, sizeof(url), GET_MOVIE_URL, id);
+	DIE(ret < 0, "snprintf() failed\n");
+
+	/* Create the request. */
+	return compute_get_request(SRV_IP, SRV_PORT, url,
+			client->cookie, client->token
+	);
+}
+
+void print_get_movie_response(const char *response)
+{
+	char *payload, *pretty_payload;
+
+	payload = basic_extract_json_response(response);
+	pretty_payload = get_pretty_string_from_json_string(payload);
+	printf("%s\n", pretty_payload);
+
+	free(pretty_payload);
+}
+
+void get_movie(const client_t *const client)
+{
+	char *request, *response;
+	int ret;
+
+	/* Create the request. */
+	request = get_get_movie_request(client);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	ret = basic_print_http_response_with_content(response);
+	if (ret == -1)
+	{
+		ret = basic_print_http_response(response, "The movie was found.");
+	}
+	if (ret == 2)
+	{
+		print_get_movie_response(response);
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+char *get_add_movie_request(const client_t *const client)
+{
+	char title[LINELEN];
+	char year[LINELEN];
+	char description[LINELEN];
+	char rating[LINELEN];
+	char payload[5 * LINELEN];
+	int ret;
+
+	/* Get the title. */
+	printf("title=");
+	read_line(title, sizeof(title));
+
+	/* Get the year. */
+	printf("year=");
+	read_line(year, sizeof(year));
+
+	/* Get the description. */
+	printf("description=");
+	read_line(description, sizeof(description));
+
+	/* Get the rating. */
+	printf("rating=");
+	read_line(rating, sizeof(rating));
+
+	/* Create the payload. */
+	ret = snprintf(payload, sizeof(payload), ADD_MOVIE_CONTENT_FORMAT,
+			title, year, description, rating
+	);
+	DIE(ret < 0, "snprintf() failed\n");
+	
+	/* Create the request. */
+	return compute_post_request(SRV_IP, SRV_PORT, ADD_MOVIE_URL,
+			ADD_MOVIE_CONTENT_TYPE, payload, client->cookie, client->token
+	);
+}
+
+void add_movie(const client_t *const client)
+{
+	char *request, *response;
+
+	/* Create the request. */
+	request = get_add_movie_request(client);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	if (basic_print_http_response_with_content(response) == -1)
+	{
+		basic_print_http_response(response,
+			"Movie added successfully.");
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+char *get_delete_movie_request(const client_t *const client)
+{
+	char id[LINELEN];
+	char url[2 * LINELEN];
+	int ret;
+
+	/* Get the title. */
+	printf("id=");
+	read_line(id, sizeof(id));
+
+	/* Complete the url. */
+	ret = snprintf(url, sizeof(url), DELETE_MOVIE_URL, id);
+	DIE(ret < 0, "snprintf() failed\n");
+
+	/* Create the request. */
+	return compute_delete_request(SRV_IP, SRV_PORT, url,
+			client->cookie, client->token);
+}
+
+void delete_movie(const client_t *const client)
+{
+	char *request, *response;
+
+	/* Create the request. */
+	request = get_delete_movie_request(client);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	if (basic_print_http_response_with_content(response) == -1)
+	{
+		basic_print_http_response(response,
+			"Movie deleted successfully.");
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+char *get_update_movie_request(const client_t *const client)
+{
+	char id[LINELEN];
+	char title[LINELEN];
+	char year[LINELEN];
+	char description[LINELEN];
+	char rating[LINELEN];
+	char url[2 * LINELEN];
+	char payload[5 * LINELEN];
+	int ret;
+
+	/* Get the title. */
+	printf("id=");
+	read_line(id, sizeof(id));
+
+	/* Complete the url. */
+	ret = snprintf(url, sizeof(url), DELETE_MOVIE_URL, id);
+	DIE(ret < 0, "snprintf() failed\n");
+
+	/* Get the title. */
+	printf("title=");
+	read_line(title, sizeof(title));
+
+	/* Get the year. */
+	printf("year=");
+	read_line(year, sizeof(year));
+
+	/* Get the description. */
+	printf("description=");
+	read_line(description, sizeof(description));
+
+	/* Get the rating. */
+	printf("rating=");
+	read_line(rating, sizeof(rating));
+
+	/* Create the payload. */
+	ret = snprintf(payload, sizeof(payload), UPDATE_MOVIE_CONTENT_FORMAT,
+			title, year, description, rating
+	);
+	DIE(ret < 0, "snprintf() failed\n");
+	
+	/* Create the request. */
+	return compute_put_request(SRV_IP, SRV_PORT, url,
+			UPDATE_MOVIE_CONTENT_TYPE, payload, client->cookie, client->token
+	);
+}
+
+void update_movie(const client_t *const client)
+{
+	char *request, *response;
+
+	/* Create the request. */
+	request = get_update_movie_request(client);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	if (basic_print_http_response_with_content(response) == -1)
+	{
+		basic_print_http_response(response, "Movie updated successfully.");
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+char *get_add_movie_to_collection_request(const client_t *const client,
+		const char *const coll_id, const char* const movie_id)
+{
+	char url[2 * LINELEN];
+	char payload[2 * LINELEN];
+	int ret;
+
+	/* Create the payload. */
+	ret = snprintf(payload, sizeof(payload),
+			ADD_MOVIE_TO_COLLECTION_CONTENT_FORMAT, movie_id
+	);
+	DIE(ret < 0, "snprintf() failed\n");
+
+	/* Complete the url. */
+	ret = snprintf(url, sizeof(url), ADD_MOVIE_TO_COLLECTION_URL, coll_id);
+	DIE(ret < 0, "snprintf() failed\n");
+
+	/* Create the request. */
+	return compute_post_request(SRV_IP, SRV_PORT, url,
+			ADD_MOVIE_TO_COLLECTION_CONTENT_TYPE, payload,
+			client->cookie, client->token
+	);
+
+}
+
+void add_movie_to_collection(const client_t *const client,
+		const char *const coll_id, const char* const movie_id)
+{
+	char *request, *response;
+
+	/* Create the requset (our letter to server). */
+	request = get_add_movie_to_collection_request(client, coll_id, movie_id);
+
+	/* Comunicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	if (basic_print_http_response_with_content(response) == -1)
+	{
+		basic_print_http_response(response,
+			"Movie added to collection successfully.");
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+void add_movies_to_collection(client_t *const client,
+		const char *const coll_id)
+{
+	char movies_num_str[LINELEN];
+	char movie_id[LINELEN];
+	size_t movies_num_sizet;
+	int old_sock_fd, ret;
+
+	/* How many movies do we add? */
+	printf("num_movies=");
+	read_line(movies_num_str, sizeof(movies_num_str));
+
+	/* Did the client introduce a valid number ? */
+	movies_num_sizet = atos(movies_num_str);
+	if (movies_num_sizet == SIZE_T_MAX)
+	{
+		printf("ERROR: Must write an integer number between 0 and %ld\n",
+			SIZE_T_MAX);
+		return;
+	}
+
+	/* Put movies in collection. */
+	old_sock_fd = client->sock_fd;
+	for (size_t i = 0; i < movies_num_sizet; ++i)
+	{
+		client->sock_fd = open_connection(SRV_IP, SRV_PORT, AF_INET,
+			SOCK_STREAM, 0);
+
+		printf("movie_id[%ld]=", i);
+		read_line(movie_id, sizeof(movie_id));
+
+		add_movie_to_collection(client, coll_id, movie_id);
+
+		ret = close(client->sock_fd); /* What was remains in past */
+		DIE(ret == -1, "close() failed\n");
+	}
+	client->sock_fd = old_sock_fd;
+}
+
+char *get_add_collection_request(const client_t *const client)
+{
+	char title[LINELEN];
+	char payload[2 * LINELEN];
+	int ret;
+
+	/* Get the title. */
+	printf("title=");
+	read_line(title, sizeof(title));
+	
+	/* Create the payload. */
+	ret = snprintf(payload, sizeof(payload),
+			ADD_COLLECTION_CONTENT_FORMAT, title
+	);
+	DIE(ret < 0, "snprintf() failed\n");
+
+	/* Create the request. */
+	return compute_post_request(SRV_IP, SRV_PORT, ADD_COLLECTION_URL,
+			ADD_COLLECTION_CONTENT_TYPE, payload, client->cookie,
+			client->token
+	);
+
+}
+
+void add_collection(client_t *const client)
+{
+	char *request, *response, *json_response;
+	char coll_id[LINELEN];
+	int ret;
+
+	/* Create the requset (our letter to server). */
+	request = get_add_collection_request(client);
+
+	/* Comunicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	ret = basic_print_http_response_with_content(response);
+	if ( ret == -1)
+	{
+		ret = basic_print_http_response(response,
+				"Collection created successfully.");
+	}
+
+	/* Add movies in the new created world. */
+	if (ret == 2) {
+		json_response = basic_extract_json_response(response);
+
+		ret = snprintf(coll_id, sizeof(coll_id), "%ld",
+				(size_t) get_number_from_json_string(json_response, "id"));
+		DIE(ret == -1, "snprintf() failed\n");
+	
+		add_movies_to_collection(client, coll_id);
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+char *get_delete_collection_request(const client_t *const client)
+{
+	char coll_id[LINELEN];
+	char url[2 * LINELEN];
+	int ret;
+
+	/* Get the collection id. */
+	printf("id=");
+	read_line(coll_id, sizeof(coll_id));
+
+	/* Complete the url. */
+	ret = snprintf(url, sizeof(url), DELETE_COLLECTION_URL, coll_id);
+	DIE(ret < 0, "snprintf() failed\n");
+
+	/* Create the request. */
+	return compute_delete_request(SRV_IP, SRV_PORT, url,
+			client->cookie, client->token
+	);
+}
+
+void delete_collection(const client_t *const client)
+{
+	char *request, *response;
+
+	/* Create the requset. */
+	request = get_delete_collection_request(client);
+
+	/* Comunicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	if (basic_print_http_response_with_content(response) == -1)
+	{
+		basic_print_http_response(response,
+			"Collection deleted successfully.");
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+void print_get_collections_response(const char *response)
+{
+	JSON_Value *json_value;
+	JSON_Array *colls_array;
+	JSON_Object *coll_object;
+	const char *title;
+	size_t id, size;
+
+	json_value = get_json_val_from_string(
+		basic_extract_json_response(response)
+	);
+    colls_array = get_json_array_from_json_val(json_value, "collections");
+
+	size = json_array_get_count(colls_array);
+	if (size == 0)
+	{
+		printf("You do not have movies.\n");
+	}
+
+    for (size_t i = 0; i < size; i++)
+	{
+        coll_object = json_array_get_object(colls_array, i);
+		id = json_object_get_number(coll_object, "id");
+		title = json_object_get_string(coll_object, "title");
+
+        printf("#%lu %s\n", id, title);
+    }
+
+	json_value_free(json_value);
+}
+
+void get_collections(const client_t *const client)
+{
+	char *request, *response;
+	int ret;
+
+	/* Create the requset. */
+	request = compute_get_request(SRV_IP, SRV_PORT, GET_COLLECTIONS_URL,
+			client->cookie, client->token
+	);
+
+	/* Comunicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	ret = basic_print_http_response_with_content(response);
+	if (ret == -1)
+	{
+		ret = basic_print_http_response(response, "Collections list:");
+	}
+	if (ret == 2)
+	{
+		print_get_collections_response(response);
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+void print_get_collection_response(const char *response)
+{
+	char *payload, *title, *owner;
+
+	payload = basic_extract_json_response(response);
+
+	title = get_string_from_json_string(payload, "title");
+	printf("title: %s\n", title);
+	free(title);
+
+	owner = get_string_from_json_string(payload, "owner");
+	printf("owner: %s\n", owner);
+	free(owner);
+
+	print_get_movies_response(response);
+}
+
+char *get_get_collection_request(const client_t *const client)
+{
+	char coll_id[LINELEN];
+	char url[2 * LINELEN];
+	int ret;
+
+	/* Get the collection id. */
+	printf("id=");
+	read_line(coll_id, sizeof(coll_id));
+
+	/* Complete the url. */
+	ret = snprintf(url, sizeof(url), GET_COLLECTION_URL, coll_id);
+	DIE(ret < 0, "snprintf() failed\n");
+
+	/* Create the request. */
+	return compute_get_request(SRV_IP, SRV_PORT, url,
+			client->cookie, client->token
+	);
+}
+
+void get_collection(const client_t *const client)
+{
+	char *request, *response;
+	int ret;
+
+	/* Create the requset. */
+	request = get_get_collection_request(client);
+
+	/* Comunicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	ret = basic_print_http_response_with_content(response);
+	if (ret == -1)
+	{
+		ret = basic_print_http_response(response, "The collection was found.");
+	}
+	if (ret == 2)
+	{
+		print_get_collection_response(response);
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+char *get_delete_movie_from_collection_request(const client_t *const client)
+{
+	char coll_id[LINELEN];
+	char movie_id[LINELEN];
+	char url[2 * LINELEN];
+	int ret;
+
+	/* Get the collection id. */
+	printf("collection_id=");
+	read_line(coll_id, sizeof(coll_id));
+
+	/* Get the +movie id. */
+	printf("movie_id=");
+	read_line(movie_id, sizeof(movie_id));
+
+	/* Complete the url. */
+	ret = snprintf(url, sizeof(url), DELETE_MOVIE_FROM_COLLECTION_URL,
+			coll_id, movie_id);
+	DIE(ret < 0, "snprintf() failed\n");
+
+	/* Create the request. */
+	return compute_delete_request(SRV_IP, SRV_PORT, url,
+			client->cookie, client->token
+	);
+}
+
+void delete_movie_from_collection(const client_t *const client)
+{
+	char *request, *response;
+
+	/* Create the requset. */
+	request = get_delete_movie_from_collection_request(client);
+	printf("%s\n", request);
+
+	/* Comunicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	if (basic_print_http_response_with_content(response) == -1)
+	{
+		basic_print_http_response(response,
+			"Movie deleted from collection successfully.");
 	}
 
 	/* Free the memory. */
@@ -583,22 +1119,26 @@ bool handle_movie_command(client_t *const client, const char *command)
 {
 	if (!strcmp(command, ADD_MOVIE_CMD))
 	{
-		//add_movie(sockfd);
+		add_movie(client);
 		return true;
 	}
 	else if (!strcmp(command, DELETE_MOVIE_CMD))
 	{
-		//
+		delete_movie(client);
 		return true;
 	}
 	else if (!strcmp(command, GET_MOVIE_CMD))
 	{
-		//get_movie(sockfd);
+		get_movie(client);
 		return true;
 	}
 	else if (!strcmp(command, GET_MOVIES_CMD))
 	{
-		//get_movies(sockfd);
+		get_movies(client);
+		return true;
+	} else if (!strcmp(command, UPDATE_MOVIE_CMD))
+	{
+		update_movie(client);
 		return true;
 	}
 
@@ -609,32 +1149,42 @@ bool handle_coll_command(client_t *const client, const char *const command)
 {
 	if (!strcmp(command, ADD_COLLECTION_CMD))
 	{
-		//
+		add_collection(client);
 		return true;
 	}
 	else if (!strcmp(command, DELETE_COLLECTION_CMD))
 	{
-		//
+		delete_collection(client);
 		return true;
 	}
 	else if (!strcmp(command, ADD_MOVIE_TO_COLLECTION_CMD))
 	{
-		//
+		char coll_id[LINELEN], movie_id[LINELEN];
+
+		/* Get the collection id. */
+		printf("collection_id=");
+		read_line(coll_id, sizeof(coll_id));
+
+		/* Get the movie id. */
+		printf("movie_id=");
+		read_line(movie_id, sizeof(movie_id));
+
+		add_movie_to_collection(client, coll_id, movie_id);
 		return true;
 	}
 	else if (!strcmp(command, DELETE_MOVIE_FROM_COLLECTION_CMD))
 	{
-		//
+		delete_movie_from_collection(client);
 		return true;
 	}
 	else if (!strcmp(command, GET_COLLECTION_CMD))
 	{
-		//
+		get_collection(client);
 		return true;
 	}
 	else if (!strcmp(command, GET_COLLECTIONS_CMD))
 	{
-		//
+		get_collections(client);
 		return true;
 	}
 

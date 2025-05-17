@@ -147,7 +147,7 @@ char *extract_from_http_response(const char *const response, char *field)
 	return value;
 }
 
-char *get_field_from_json_string(char* json_string, char *field_name)
+char *get_string_from_json_string(char* json_string, char *field_name)
 {
 	JSON_Value *root_value;
 	JSON_Object *root_object;
@@ -175,6 +175,24 @@ char *get_field_from_json_string(char* json_string, char *field_name)
 	return field_value_copy;
 }
 
+double get_number_from_json_string(char* json_string, char *field_name)
+{
+	JSON_Value *root_value;
+	JSON_Object *root_object;
+	double field_value;
+
+	root_value = json_parse_string(json_string);
+	DIE(root_value == NULL, "json_parse_string() failed\n");
+
+	root_object = json_value_get_object(root_value);
+	DIE(root_object == NULL, "json_value_get_object() failed\n");
+
+	field_value = json_object_get_number(root_object, field_name);
+
+	json_value_free(root_value);
+	return field_value;
+}
+
 void read_line(char *buff, int len)
 {
 	char *ret;
@@ -187,7 +205,8 @@ void read_line(char *buff, int len)
 	buff[strlen(buff) - 1] = '\0';
 }
 
-void get_http_response_code(const char *const response, char *const code) {
+void get_http_response_code(const char *const response, char *const code)
+{
 	char *start;
 
 	start = strchr(response, ' ');
@@ -204,21 +223,25 @@ int basic_print_http_response_with_content(char *const response)
 
 	/* Do we have something in payload? */
 	response_payload = basic_extract_json_response(response);
-	if (strstr(response_payload, "\"error\":"))
+	if (response_payload == NULL)
 	{
-		message = get_field_from_json_string(response_payload, "error");
+		return -1;
+	}
+	else if (strstr(response_payload, "\"error\":"))
+	{
+		message = get_string_from_json_string(response_payload, "error");
 
 		printf("ERROR: %s\n", message);
 		free(message);
-		return 0;
+		return 4;
 	}
 	else if (strstr(response_payload, "\"message\":"))
 	{
-		message = get_field_from_json_string(response_payload, "message");
+		message = get_string_from_json_string(response_payload, "message");
 
 		printf("SUCCESS: %s\n", message);
 		free(message);
-		return 0;
+		return 2;
 	}
 
 	return -1;
@@ -243,7 +266,7 @@ int basic_print_http_response(char *const response, const char *const success_ms
 	}
 	else if (code[0] == '5')
 	{
-		printf("ERROR: Internal server error (code %s)\n",  code);
+		printf("ERROR: Server error (code %s)\n",  code);
 		return 5;
 	}
 	return -1;
@@ -267,5 +290,59 @@ JSON_Array *get_json_array_from_json_val(JSON_Value *value,
 	object = json_value_get_object(value);
 	DIE(object == NULL, "json_value_get_object() failed\n");
 
-	return json_object_get_array(object, "users");
+	return json_object_get_array(object, field_name);
+}
+
+char *get_pretty_string_from_json_string(const char *string)
+{
+	JSON_Value *root_value;
+	char *pretty_string;
+
+	root_value = json_parse_string(string);
+	DIE(root_value == NULL, "json_parse_string() failed\n");
+
+	pretty_string = json_serialize_to_string_pretty(root_value);
+	DIE(pretty_string == NULL, "json_serialize_to_string_pretty() failed\n");
+
+	json_value_free(root_value);
+	return pretty_string;
+}
+
+size_t atos(const char *const string)
+{
+	size_t number;
+	int len, digit;
+
+	if (string == NULL)
+	{
+		return SIZE_T_MAX;
+	}
+	
+	len = strlen(string);
+	if (len == 0 || !('1' <= string[0] && string[0] <= '9'))
+	{
+		return SIZE_T_MAX;
+	}
+
+	number = 0;
+	for (int i = 0; i < len; ++i)
+	{
+		/* Is digit? */
+		if (!('0' <= string[0] && string[0] <= '9'))
+		{
+			return SIZE_T_MAX;
+		}
+
+		/* Does it overflow? */
+		digit = string[i] - '0';
+		if (number * 10 + digit < number)
+		{
+			return SIZE_T_MAX;
+		}
+
+		/* Add the new digit. */
+		number = number * 10 + digit;
+	}
+
+	return number;
 }

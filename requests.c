@@ -86,27 +86,16 @@ static char *compute_basic_request(char *method, char *ip, int port,
 	return message;
 }
 
-char *compute_get_request(char *ip, int port, char *url,
-						  char *cookie, char *token)
-{
-	return compute_basic_request("GET", ip, port, url, cookie, token);
-}
-
-char *compute_delete_request(char *ip, int port, char *url,
-						  	 char *cookie, char *token)
-{
-	return compute_basic_request("DELETE", ip, port, url, cookie, token);
-}
-
-char *compute_post_request(char *ip, int port, char *url, char* content_type,
-						   char *content, char *cookie, char *token)
+static char *compute_content_request(char *method, char *ip, int port,
+				char *url, char* content_type, char *content, char *cookie,
+				char *token)
 {
 	char *message = calloc(BUFLEN, sizeof(char));
 	char *line = calloc(LINELEN, sizeof(char));
 	int ret;
 
 	/* Write the method name, URL and protocol type. */
-	ret = sprintf(line, "POST %s HTTP/1.1", url);
+	ret = sprintf(line, "%s %s HTTP/1.1", method, url);
 	DIE(ret < 0, "sprintf() failed\n");
 	compute_message(message, line);
 
@@ -129,5 +118,31 @@ char *compute_post_request(char *ip, int port, char *url, char* content_type,
 	memset(line, 0, LINELEN);
 	free(line);
 	return message;
+}
+
+char *compute_get_request(char *ip, int port, char *url,
+						  char *cookie, char *token)
+{
+	return compute_basic_request("GET", ip, port, url, cookie, token);
+}
+
+char *compute_delete_request(char *ip, int port, char *url,
+						  	 char *cookie, char *token)
+{
+	return compute_basic_request("DELETE", ip, port, url, cookie, token);
+}
+
+char *compute_post_request(char *ip, int port, char *url, char* content_type,
+						   char *content, char *cookie, char *token)
+{
+	return compute_content_request("POST", ip, port, url, content_type,
+			content, cookie, token);
+}
+
+char *compute_put_request(char *ip, int port, char *url, char* content_type,
+						   char *content, char *cookie, char *token)
+{
+	return compute_content_request("PUT", ip, port, url, content_type,
+			content, cookie, token);
 }
 

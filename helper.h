@@ -12,6 +12,8 @@
 #define CONTENT_LENGTH "Content-Length: "
 #define CONTENT_LENGTH_SIZE (sizeof(CONTENT_LENGTH) - 1)
 
+#define SIZE_T_MAX ((size_t)-1)
+
 #define DIE(assertion, call_description)                                      \
 	do {                                                                      \
 		if (assertion) {                                                      \
@@ -66,8 +68,11 @@ int basic_print_http_response(
 	char *const response, const char *const success_msg
 );
 
-/* Get value of a field from a json string. */
-char *get_field_from_json_string(char* json_string, char *field_name);
+/* Get a string value of a field from a json string. */
+char *get_string_from_json_string(char* json_string, char *field_name);
+
+/* Get a number value of a field from a json string. */
+double get_number_from_json_string(char* json_string, char *field_name);
 
 /* Get the json of a value from a string. If can not do this, stop
  * the program. */
@@ -78,5 +83,11 @@ JSON_Value *get_json_val_from_string(const char *const response);
 JSON_Array *get_json_array_from_json_val(
 	JSON_Value *value, const char *const field_name
 );
+
+void get_http_response_code(const char *const response, char *const code);
+
+char *get_pretty_string_from_json_string(const char *string);
+
+size_t atos(const char *const string);
 
 #endif
