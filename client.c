@@ -35,6 +35,11 @@ static void get_new_token(client_t *const client, const char *const response)
 {
 	char *response_payload, *token;
 
+	if (!response)
+	{
+		return;
+	}
+
 	response_payload = basic_extract_json_response(response);
 	token = get_string_from_json_string(response_payload, "token");
 	if (token)
@@ -56,6 +61,11 @@ static void get_new_token(client_t *const client, const char *const response)
  *************************************/
 static void get_new_cookie(client_t *const client, const char *const response)
 {	
+	if (!response)
+	{
+		return;
+	}
+
 	if (strstr(response, "\r\nSet-Cookie:"))
 	{
 		if (client->cookie)
@@ -79,6 +89,11 @@ static void delete_client_info(client_t *const client,
 		const char *const response)
 {
 	char code[4] = {'\0'};
+
+	if (!response)
+	{
+		return;
+	}
 
 	get_http_response_code(response, code);
 	if (code[0] == '2')
@@ -112,6 +127,10 @@ static char *basic_execute_command(const client_t *const client,
 	
 	/* Create the request. */
 	request = get_request(client);
+	if (!request)
+	{
+		return NULL;
+	}
 
 	/* Communicate with the server. */
 	send_to_server(client->sock_fd, request);
@@ -152,6 +171,10 @@ static void basic_execute_get_command(const client_t *const client,
 	
 	/* Create the request. */
 	request = get_request(client);
+	if (!request)
+	{
+		return;
+	}
 
 	/* Communicate with the server. */
 	send_to_server(client->sock_fd, request);
@@ -240,6 +263,29 @@ static void basic_print_response_with_vector(const char *const response,
 
 	/* Free the memory. */
 	json_value_free(json_value);
+}
+
+/*************************************
+ * @brief Verify if a atring can be converted to size_t. If not, 
+ * print an error message.
+ *
+ * @param field_name for which was introduced the value
+ * @param field_val string that we will try to convert it to size_t
+ *
+ * @return true, if the string can be converted to size_t
+ *		   false,else
+ *************************************/
+static bool nonneg_integer_is_valid(const char *const field_name,
+		const char *const field_val)
+{
+	if (atos(field_val) == SIZE_T_MAX)
+	{
+		printf("ERROR: The %s must be a integer between 0 and %ld\n",
+			field_name, SIZE_T_MAX - 1
+		);
+		return false;
+	}
+	return true;
 }
 
 static char *get_login_admin_request(const client_t *const client)
@@ -501,6 +547,12 @@ static char *get_get_movie_request(const client_t *const client)
 	printf("id=");
 	read_line(id, LINELEN);
 
+	/* Does the id is valid? */
+	if (!nonneg_integer_is_valid("id", id))
+	{
+		return NULL;
+	}
+
 	/* Complete the url. */
 	ret = snprintf(url, sizeof(url), GET_MOVIE_URL, id);
 	DIE(ret < 0, "snprintf() failed\n");
@@ -636,6 +688,19 @@ static char *get_update_movie_request(const client_t *const client)
 	printf("rating=");
 	read_line(rating, sizeof(rating));
 
+	/* Does the id  and the year are valid? */
+	if (!nonneg_integer_is_valid("id", id) ||
+		!nonneg_integer_is_valid("year", year))
+	{
+		return NULL;
+	}
+
+	/* Does the year is valid? */
+	if (!nonneg_integer_is_valid("id", id))
+	{
+		return NULL;
+	}
+
 	/* Create the payload. */
 	ret = snprintf(payload, sizeof(payload), UPDATE_MOVIE_CONTENT_FORMAT,
 			title, year, description, rating
@@ -671,6 +736,13 @@ static char *get_add_movie_to_collection_request(const client_t *const client)
 	/* Get the movie id. */
 	printf("movie_id=");
 	read_line(movie_id, sizeof(movie_id));
+
+	/* Does the ids are valid? */
+	if (!nonneg_integer_is_valid("collection_id", coll_id) ||
+		!nonneg_integer_is_valid("movie_id", movie_id))
+	{
+		return NULL;
+	}
 
 	/* Create the payload. */
 	ret = snprintf(payload, sizeof(payload),
@@ -836,7 +908,7 @@ static size_t read_num_movies()
 	if (num_movies_integer == SIZE_T_MAX)
 	{
 		printf("ERROR: Must select an integer number between 0 and %ld\n",
-			SIZE_T_MAX
+			SIZE_T_MAX - 1
 		);
 	}
 	return num_movies_integer;
@@ -923,6 +995,12 @@ static char *get_delete_collection_request(const client_t *const client)
 	printf("id=");
 	read_line(coll_id, sizeof(coll_id));
 
+	/* Does the id is valid? */
+	if (!nonneg_integer_is_valid("id", coll_id))
+	{
+		return NULL;
+	}
+
 	/* Complete the url. */
 	ret = snprintf(url, sizeof(url), DELETE_COLLECTION_URL, coll_id);
 	DIE(ret < 0, "snprintf() failed\n");
@@ -1000,6 +1078,12 @@ static char *get_get_collection_request(const client_t *const client)
 	printf("id=");
 	read_line(coll_id, sizeof(coll_id));
 
+	/* Does the id is valid? */
+	if (!nonneg_integer_is_valid("id", coll_id))
+	{
+		return NULL;
+	}
+
 	/* Complete the url. */
 	ret = snprintf(url, sizeof(url), GET_COLLECTION_URL, coll_id);
 	DIE(ret < 0, "snprintf() failed\n");
@@ -1032,6 +1116,13 @@ static char *get_delete_movie_from_collection_request(
 	/* Get the +movie id. */
 	printf("movie_id=");
 	read_line(movie_id, sizeof(movie_id));
+
+	/* Does the ids are valid? */
+	if (!nonneg_integer_is_valid("collection_id", coll_id) ||
+		!nonneg_integer_is_valid("movie_id", movie_id))
+	{
+		return NULL;
+	}
 
 	/* Complete the url. */
 	ret = snprintf(url, sizeof(url), DELETE_MOVIE_FROM_COLLECTION_URL,
