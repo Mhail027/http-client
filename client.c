@@ -1,10 +1,10 @@
-#include <stdio.h>      /* printf, sprintf, fgets */
-#include <stdlib.h>     /* exit, atoi, malloc, free */
-#include <unistd.h>     /* read, write, close */
-#include <string.h>     /* memcpy, memset */
-#include <sys/socket.h> /* socket, connect */
-#include <netinet/in.h> /* struct sockaddr_in, struct sockaddr */
-#include <netdb.h>      /* struct hostent, gethostbyname */
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
 #include "helper.h"
@@ -12,14 +12,26 @@
 #include "parson.h"
 #include "client.h"
 
-void init_client(client_t *client)
+/*************************************
+ * @brief Initialize the client's info.
+ *
+ * @param client address in memory
+ *************************************/
+static void init_client(client_t *const client)
 {
 	client->sock_fd = -1;
 	client->cookie = NULL;
 	client->token = NULL;
 }
 
-void get_new_token(client_t *const client, const char *const response)
+/*************************************
+ * @brief Verify if we received a new token from server. If yes, update
+ * the client's token.
+ *
+ * @param client info
+ * @param response (of type HTTP) received from server 
+ *************************************/
+static void get_new_token(client_t *const client, const char *const response)
 {
 	char *response_payload, *token;
 
@@ -27,29 +39,49 @@ void get_new_token(client_t *const client, const char *const response)
 	token = get_string_from_json_string(response_payload, "token");
 	if (token)
 	{
-		if (client->token) {
+		if (client->token)
+		{
 			free(client->token);
 		}
 		client->token = token;
 	}
 }
 
-void get_new_cookie(client_t *const client, const char *const response)
+/*************************************
+ * @brief Verify if we received a new cookie from server. If yes, update
+ * the client's cookie.
+ *
+ * @param client info
+ * @param response (of type HTTP) received from server 
+ *************************************/
+static void get_new_cookie(client_t *const client, const char *const response)
 {	
-	if (strstr(response, "\r\nSet-Cookie:")) {
-		if (client->cookie) {
+	if (strstr(response, "\r\nSet-Cookie:"))
+	{
+		if (client->cookie)
+		{
 			free(client->cookie);
 		}
 		client->cookie = extract_from_http_response(response, "Set-Cookie");
+		strtok(client->cookie, "; ");
 	}
 }
 
-void delete_client_info(client_t *const client, const char *const response) 
+/*************************************
+ * @brief This function should only be called on logout. If the server
+ * accepted our logout request, we have a new start. The past user / admin
+ * leaves and we enter in a state in which we have no client. 
+ *
+ * @param client info
+ * @param response (of type HTTP) received from server 
+ *************************************/
+static void delete_client_info(client_t *const client,
+		const char *const response)
 {
-	char *resp_payload;
+	char code[4] = {'\0'};
 
-	resp_payload = basic_extract_json_response(response);
-	if (resp_payload && !strstr(resp_payload, "\"error\":"))
+	get_http_response_code(response, code);
+	if (code[0] == '2')
 	{
 		free(client->cookie);
 		client->cookie = NULL;
@@ -59,7 +91,158 @@ void delete_client_info(client_t *const client, const char *const response)
 	}
 }
 
-char *get_login_admin_request(const client_t *const client)
+/*************************************
+ * @brief Create a HTTP request. Send the request to server. Receive
+ * a response from server. Interpretate the answer in a basic mode
+ * and print it to stdout.
+ *
+ * @param client info
+ * @param get_funct function which create the request which will be
+ * sent to server
+ * @param backup_success_msg message which will be printed on success,
+ * if the server does not have a field named message in payload 
+ *
+ * @return the response of the server
+ *************************************/
+static char *basic_execute_command(const client_t *const client,
+		char *(*const get_request)(const client_t *const),
+		const char *const backup_success_msg)
+{
+	char *request, *response;
+	
+	/* Create the request. */
+	request = get_request(client);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	if (basic_print_http_response_with_content(response) == -1)
+	{
+		basic_print_http_response(response, backup_success_msg);
+	}
+
+	/* Free the memory. */
+	free(request);
+
+	return response;
+}
+
+/*************************************
+ * @brief Create a HTTP get request. Send the request to server. Receive
+ * a response from server. Interpretate the answer in a basic mode and
+ * print it to stdout.
+ *
+ * @param client info
+ * @param get_funct function which create the request which will be
+ * sent to server
+ * @param backup_success_msg message which will be printed on success,
+ * if the server does not have a field named message in payload 
+ * @param print_response function to print the payload of the response,
+ * if the request finished with success.
+ *************************************/
+static void basic_execute_get_command(const client_t *const client,
+		char *(*const get_request)(const client_t *const),
+		const char *const backup_success_msg,
+		void (*const print_response)(const char *const))
+{
+	char *request, *response;
+	int ret;
+	
+	/* Create the request. */
+	request = get_request(client);
+
+	/* Communicate with the server. */
+	send_to_server(client->sock_fd, request);
+	response = receive_from_server(client->sock_fd);
+
+	/* How did the server answer? */
+	ret = basic_print_http_response_with_content(response);
+	if (ret == -1)
+	{
+		ret = basic_print_http_response(response, backup_success_msg);
+	}
+	if (ret == 2)
+	{
+		print_response(response);
+	}
+
+	/* Free the memory. */
+	free(request);
+	free(response);
+}
+
+/*************************************
+ * @brief Print an array from the payload of an HTTP response. The format
+ * for every element from array is the next one:
+ * 		#number value1:value2:value3
+ *
+ * @param response from server
+ * @param array_name from response's payload
+ * @param fields which will be printed for every element from array;
+ * the first field should store just number; the otehrs must store just
+ * strings
+ * @param num_fields number of fields printed for every element; must be
+ * at least 1
+ * @param empty_array_msg that will be used just if the array has 0
+ * elements
+ *************************************/
+static void basic_print_response_with_vector(const char *const response,
+		const char *const array_name, const char *const *const fields,
+		const size_t num_fields, const char *const empty_array_msg)
+{
+	JSON_Value *json_value;
+	JSON_Array *json_array;
+	JSON_Object *json_object;
+	size_t size, pos;
+
+	/* Get the array. */
+	json_value = get_json_val_from_string(
+		basic_extract_json_response(response)
+	);
+    json_array = get_json_array_from_json_val(json_value, array_name);
+
+	/* Does the array is empty? */
+	size = json_array_get_count(json_array);
+	if (size == 0)
+	{
+		printf("%s\n", empty_array_msg);
+	}
+
+	/* Print the array alement by element. */
+    for (size_t i = 0; i < size; i++)
+	{
+        json_object = json_array_get_object(json_array, i);
+
+		/* The first subfield */
+		printf("#%ld ",
+			(size_t ) json_object_get_number(json_object, fields[0])
+		);
+
+		/* The middle subfields */
+		for (int j = 1; j < num_fields - 1; ++j)
+		{
+			printf("%s:",
+				json_object_get_string(json_object, fields[j])
+			);
+		}
+
+		/* The last subfields */
+		if (num_fields >= 2)
+		{
+			pos = num_fields - 1;
+			printf("%s\n",
+				json_object_get_string(json_object, fields[pos])
+			);
+		}
+    }
+
+	/* Free the memory. */
+	json_value_free(json_value);
+}
+
+static char *get_login_admin_request(const client_t *const client)
 {
 	char username[LINELEN];
 	char password[LINELEN];
@@ -86,54 +269,36 @@ char *get_login_admin_request(const client_t *const client)
 	);
 }
 
-void login_admin(client_t *const client)
+static void login_admin(client_t *const client)
 {
-	char *request, *response;
-	
-	/* Create the request. */
-	request = get_login_admin_request(client);
+	char *response;
 
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
+	response = basic_execute_command(client, &get_login_admin_request,
+			"Admin logged in successfully.");
 	get_new_cookie(client, response);
-	if (basic_print_http_response_with_content(response) == -1)
-	{
-		basic_print_http_response(response, "Admin logged in successfully.");
-	}
 
-	/* Free the memory. */
-	free(request);
 	free(response);
 }
 
-void logout_admin(client_t *const client)
+static char *get_logout_admin_request(const client_t *const client)
 {
-	char *request, *response;
+	return compute_get_request(SRV_IP, SRV_PORT, LOGOUT_ADMIN_URL,
+				client->cookie, client->token
+	);
+}
 
-	/* Create the request. */
-	request = compute_get_request(SRV_IP, SRV_PORT, LOGOUT_ADMIN_URL,
-				client->cookie, NULL);
+static void logout_admin(client_t *const client)
+{
+	char *response;
 
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
+	response = basic_execute_command(client, &get_logout_admin_request,
+			"Admin logged out successfully.");
 	delete_client_info(client, response);
-	if (basic_print_http_response_with_content(response) == -1)
-	{
-		basic_print_http_response(response, "Admin logged out successfully.");
-	}
 
-	/* Free the memory. */
-	free(request);
 	free(response);
 }
 
-char *get_login_request(const client_t *const client)
+static char *get_login_request(const client_t *const client)
 {
 	char admin_username[LINELEN];
 	char username[LINELEN];
@@ -165,55 +330,38 @@ char *get_login_request(const client_t *const client)
 	);
 }
 
-void login(client_t *const client)
+static void login(client_t *const client)
 {
-	char *request, *response;
-	
-	/* Create the request. */
-	request = get_login_request(client);
+	char *response;
 
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	get_new_cookie(client,response);
-	if (basic_print_http_response_with_content(response) == -1)
-	{
-		basic_print_http_response(response, "User logged in successfully.");
-	}
-
-	/* Free the memory. */
-	free(request);
-	free(response);
-}
-
-void logout(client_t *const client)
-{
-	char *request, *response;
-	
-	/* Create the request. */
-	request = compute_get_request(SRV_IP, SRV_PORT, LOGOUT_URL,
-			client->cookie, client->token
+	response = basic_execute_command(client, &get_login_request,
+			"User logged in successfully."
 	);
+	get_new_cookie(client, response);
 
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	delete_client_info(client, response);
-	if (basic_print_http_response_with_content(response) == -1)
-	{
-		basic_print_http_response(response, "User logged out successfully.");
-	}
-
-	/* Free the memory. */
-	free(request);
 	free(response);
 }
 
-char *get_add_user_request(const client_t *const client)
+static char *get_logout_request(const client_t *const client)
+{
+	return compute_get_request(SRV_IP, SRV_PORT, LOGOUT_URL,
+				client->cookie, client->token
+	);
+}
+
+static void logout(client_t *const client)
+{
+	char *response;
+
+	response = basic_execute_command(client, &get_logout_request,
+			"User logged out successfully."
+	);
+	delete_client_info(client, response);
+
+	free(response);
+}
+
+static char *get_add_user_request(const client_t *const client)
 {
 	char username[LINELEN];
 	char password[LINELEN];
@@ -240,30 +388,15 @@ char *get_add_user_request(const client_t *const client)
 	);
 }
 
-void add_user(const client_t *const client)
+static void add_user(const client_t *const client)
 {
-	char *request, *response;
-
-	/* Create the request. */
-	request = get_add_user_request(client);
-
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	if (basic_print_http_response_with_content(response) == -1)
-	{
-		basic_print_http_response(response,
-			"The usser was added successfully.");
-	}
-
-	/* Free the memory. */
-	free(request);
-	free(response);
+	free(basic_execute_command(client,
+			&get_add_user_request,
+			"The user was addes successfully.")
+	);
 }
 
-char *get_delete_user_request(const client_t *const client)
+static char *get_delete_user_request(const client_t *const client)
 {
 	char username[LINELEN];
 	char url[2 * LINELEN];
@@ -283,174 +416,82 @@ char *get_delete_user_request(const client_t *const client)
 
 }
 
-void delete_user(const client_t *const client)
+static void delete_user(const client_t *const client)
 {
-	char *request, *response;
-
-	/* Create the request. */
-	request = get_delete_user_request(client);
-
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	if (basic_print_http_response_with_content(response) == -1) {
-		basic_print_http_response(response,
-			"The usser was deleted successfully.");
-	}
-
-	/* Free the memory. */
-	free(request);
-	free(response);
-}
-
-void print_get_users_response(const char* response)
-{
-	JSON_Value *json_value;
-	JSON_Array *users_array;
-	JSON_Object *user_object;
-	const char *username, *password;
-	size_t size;
-
-	json_value = get_json_val_from_string(
-		basic_extract_json_response(response)
+	free(basic_execute_command(client,
+			&get_delete_user_request,
+			"The user was deleted successfully.")
 	);
-    users_array = get_json_array_from_json_val(json_value, "users");
-
-	size = json_array_get_count(users_array);
-	if (size == 0)
-	{
-		printf("You do not have users.\n");
-	}
-
-    for (size_t i = 0; i < size; i++)
-	{
-        user_object = json_array_get_object(users_array, i);
-		username = json_object_get_string(user_object, "username");
-		password = json_object_get_string(user_object, "password");
-
-        printf("#%ld %s:%s\n", i + 1, username, password);
-    }
-
-	json_value_free(json_value);
 }
 
-void get_users(const client_t *const client)
+static void print_get_users_response(const char *const response)
 {
-	char *request, *response;
-	int ret;
-	
-	/* Create the request. */
-	request = compute_get_request(SRV_IP, SRV_PORT, GET_USERS_URL,
-			client->cookie, client->token);
+	const char *fields[] = {"id", "username", "password"};
+	size_t num_fields = sizeof(fields) / sizeof(fields[0]);
 
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	ret = basic_print_http_response_with_content(response);
-	if (ret == -1)
-	{
-		ret = basic_print_http_response(response, "Users list:");
-	}
-	if (ret == 2)
-	{
-		print_get_users_response(response);
-	}
-
-	/* Free the memory. */
-	free(request);
-	free(response);
+	basic_print_response_with_vector(response, "users", fields,
+		num_fields , "You do not have users"
+	);
 }
 
-void get_access(client_t *const client)
+static char *get_get_users_request(const client_t *const client)
 {
-	char *request, *response;
-	
-	/* Create the request. */
-	request = compute_get_request(SRV_IP, SRV_PORT,
+	return compute_get_request(SRV_IP, SRV_PORT, GET_USERS_URL,
+			client->cookie, client->token
+	);
+}
+
+static void get_users(const client_t *const client)
+{
+	basic_execute_get_command(client, &get_get_users_request,
+			"Users list:", &print_get_users_response
+	);
+}
+
+static char *get_get_acces_request(const client_t *const client)
+{
+	return compute_get_request(SRV_IP, SRV_PORT,
 			GET_ACCESS_URL,	client->cookie, client->token
 	);
-
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */;
-	get_new_token(client, response);
-	if (basic_print_http_response_with_content(response) == -1)
-	{
-		basic_print_http_response(response, "Received THE JWT token.");
-	}
-
-	/* Free the memory. */
-	free(request);
-	free(response);
 }
 
-void print_get_movies_response(const char *response)
+static void get_access(client_t *const client)
 {
-	JSON_Value *json_value;
-	JSON_Array *movies_array;
-	JSON_Object *movie_object;
-	const char *title;
-	size_t id, size;
+	char *response;
 
-	json_value = get_json_val_from_string(
-		basic_extract_json_response(response)
+	response = basic_execute_command(client, get_get_acces_request,
+			"Received THE JWT token."
 	);
-    movies_array = get_json_array_from_json_val(json_value, "movies");
+	get_new_token(client, response);
 
-	size = json_array_get_count(movies_array);
-	if (size == 0)
-	{
-		printf("You do not have movies.\n");
-	}
-
-    for (size_t i = 0; i < size; i++)
-	{
-        movie_object = json_array_get_object(movies_array, i);
-		id = json_object_get_number(movie_object, "id");
-		title = json_object_get_string(movie_object, "title");
-
-        printf("#%lu %s\n", id, title);
-    }
-
-	json_value_free(json_value);
-}
-
-void get_movies(const client_t *const client)
-{
-	char *request, *response;
-	int ret;
-	
-	/* Create the request. */
-	request = compute_get_request(SRV_IP, SRV_PORT, GET_MOVIES_URL,
-				client->cookie, client->token);
-
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	ret = basic_print_http_response_with_content(response);
-	if (ret == -1)
-	{
-		ret = basic_print_http_response(response, "Movies list: ");
-	}
-	if (ret == 2)
-	{
-		print_get_movies_response(response);
-	}
-
-	/* Free the memory. */
-	free(request);
 	free(response);
 }
 
-char *get_get_movie_request(const client_t *const client)
+static void print_get_movies_response(const char *const response)
+{
+	const char *fields[] = {"id", "title"};
+	size_t num_fields = sizeof(fields) / sizeof(fields[0]);
+
+	basic_print_response_with_vector(response, "movies", fields,
+		num_fields , "You do not have movies"
+	);
+}
+
+static char *get_get_movies_request(const client_t *const client)
+{
+	return compute_get_request(SRV_IP, SRV_PORT, GET_MOVIES_URL,
+			client->cookie, client->token
+	);
+}
+
+static void get_movies(const client_t *const client)
+{
+	basic_execute_get_command(client, &get_get_movies_request,
+			"Movies list:", &print_get_movies_response
+	);
+}
+
+static char *get_get_movie_request(const client_t *const client)
 {
 	char id[LINELEN];
 	char url[2 * LINELEN];
@@ -470,7 +511,7 @@ char *get_get_movie_request(const client_t *const client)
 	);
 }
 
-void print_get_movie_response(const char *response)
+static void print_get_movie_response(const char *const response)
 {
 	char *payload, *pretty_payload;
 
@@ -481,35 +522,14 @@ void print_get_movie_response(const char *response)
 	free(pretty_payload);
 }
 
-void get_movie(const client_t *const client)
+static void get_movie(const client_t *const client)
 {
-	char *request, *response;
-	int ret;
-
-	/* Create the request. */
-	request = get_get_movie_request(client);
-
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	ret = basic_print_http_response_with_content(response);
-	if (ret == -1)
-	{
-		ret = basic_print_http_response(response, "The movie was found.");
-	}
-	if (ret == 2)
-	{
-		print_get_movie_response(response);
-	}
-
-	/* Free the memory. */
-	free(request);
-	free(response);
+	basic_execute_get_command(client, &get_get_movie_request,
+		"The movie was found.", &print_get_movie_response
+	);
 }
 
-char *get_add_movie_request(const client_t *const client)
+static char *get_add_movie_request(const client_t *const client)
 {
 	char title[LINELEN];
 	char year[LINELEN];
@@ -546,30 +566,15 @@ char *get_add_movie_request(const client_t *const client)
 	);
 }
 
-void add_movie(const client_t *const client)
+static void add_movie(const client_t *const client)
 {
-	char *request, *response;
-
-	/* Create the request. */
-	request = get_add_movie_request(client);
-
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	if (basic_print_http_response_with_content(response) == -1)
-	{
-		basic_print_http_response(response,
-			"Movie added successfully.");
-	}
-
-	/* Free the memory. */
-	free(request);
-	free(response);
+	free(basic_execute_command(client,
+			&get_add_movie_request,
+			"Movie added successfully.")
+	);
 }
 
-char *get_delete_movie_request(const client_t *const client)
+static char *get_delete_movie_request(const client_t *const client)
 {
 	char id[LINELEN];
 	char url[2 * LINELEN];
@@ -588,30 +593,15 @@ char *get_delete_movie_request(const client_t *const client)
 			client->cookie, client->token);
 }
 
-void delete_movie(const client_t *const client)
+static void delete_movie(const client_t *const client)
 {
-	char *request, *response;
-
-	/* Create the request. */
-	request = get_delete_movie_request(client);
-
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	if (basic_print_http_response_with_content(response) == -1)
-	{
-		basic_print_http_response(response,
-			"Movie deleted successfully.");
-	}
-
-	/* Free the memory. */
-	free(request);
-	free(response);
+	free(basic_execute_command(client,
+			&get_delete_movie_request,
+			"Movie deleted successfully.")
+	);
 }
 
-char *get_update_movie_request(const client_t *const client)
+static char *get_update_movie_request(const client_t *const client)
 {
 	char id[LINELEN];
 	char title[LINELEN];
@@ -658,34 +648,29 @@ char *get_update_movie_request(const client_t *const client)
 	);
 }
 
-void update_movie(const client_t *const client)
+static void update_movie(const client_t *const client)
 {
-	char *request, *response;
-
-	/* Create the request. */
-	request = get_update_movie_request(client);
-
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	if (basic_print_http_response_with_content(response) == -1)
-	{
-		basic_print_http_response(response, "Movie updated successfully.");
-	}
-
-	/* Free the memory. */
-	free(request);
-	free(response);
+	free(basic_execute_command(client,
+			&get_update_movie_request,
+			"Movie updated successfully.")
+	);
 }
 
-char *get_add_movie_to_collection_request(const client_t *const client,
-		const char *const coll_id, const char* const movie_id)
+static char *get_add_movie_to_collection_request(const client_t *const client)
 {
+	char coll_id[LINELEN];
+	char movie_id[LINELEN];
 	char url[2 * LINELEN];
 	char payload[2 * LINELEN];
 	int ret;
+
+	/* Get the collection id. */
+	printf("collection_id=");
+	read_line(coll_id, sizeof(coll_id));
+
+	/* Get the movie id. */
+	printf("movie_id=");
+	read_line(movie_id, sizeof(movie_id));
 
 	/* Create the payload. */
 	ret = snprintf(payload, sizeof(payload),
@@ -705,70 +690,159 @@ char *get_add_movie_to_collection_request(const client_t *const client,
 
 }
 
-void add_movie_to_collection(const client_t *const client,
-		const char *const coll_id, const char* const movie_id)
+static void add_movie_to_collection(const client_t *const client)
+{
+	free(basic_execute_command(client, &get_add_movie_to_collection_request,
+		"Movie addes to collection succesfully.")
+	);
+}
+
+static bool add_movie_to_new_collection(const client_t *const client,
+		const char *const coll_id, const char *const movie_id,
+		char *const msg)
 {
 	char *request, *response;
+	char url[2 * LINELEN];
+	char payload[2 * LINELEN];
+	char code[4] = {'\0'};
+	int sock_fd, ret;
+	bool success;
 
-	/* Create the requset (our letter to server). */
-	request = get_add_movie_to_collection_request(client, coll_id, movie_id);
+	/* Create the payload. */
+	ret = snprintf(payload, sizeof(payload),
+			ADD_MOVIE_TO_COLLECTION_CONTENT_FORMAT, movie_id
+	);
+	DIE(ret < 0, "snprintf() failed\n");
+
+	/* Complete the url. */
+	ret = snprintf(url, sizeof(url), ADD_MOVIE_TO_COLLECTION_URL, coll_id);
+	DIE(ret < 0, "snprintf() failed\n");
+
+	/* Create the request. */
+	request = compute_post_request(SRV_IP, SRV_PORT, url,
+			ADD_MOVIE_TO_COLLECTION_CONTENT_TYPE, payload,
+			client->cookie, client->token
+	);
 
 	/* Comunicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
+	sock_fd = open_connection(SRV_IP, SRV_PORT, AF_INET,
+			SOCK_STREAM, 0
+	);
+	send_to_server(sock_fd, request);
+	response = receive_from_server(sock_fd);
 
 	/* How did the server answer? */
-	if (basic_print_http_response_with_content(response) == -1)
+	get_http_response_code(response, code);
+	if (code[0] == '2')
 	{
-		basic_print_http_response(response,
-			"Movie added to collection successfully.");
+		success = true;
+		ret = snprintf(msg + strlen(msg), 100,
+			"#%s Added to collection successfully.\n", movie_id
+		);
+		DIE(ret == -1, "snprintf() failed\n");
+	}
+	else
+	{
+		success = false;
+		ret = snprintf(msg + strlen(msg), 100,
+			"#%s Failed to add to collection.\n", movie_id
+		);
+		DIE(ret == -1, "snprintf() failed\n");
 	}
 
 	/* Free the memory. */
 	free(request);
 	free(response);
+	DIE(close(sock_fd) == -1, "close() failed\n");
+
+	return success;
 }
 
-void add_movies_to_collection(client_t *const client,
-		const char *const coll_id)
+static void add_movies_to_new_collection(const client_t *const client,
+		const char *const *const movie_ids, const size_t num_movies,
+		const char *const response)
 {
-	char movies_num_str[LINELEN];
-	char movie_id[LINELEN];
-	size_t movies_num_sizet;
-	int old_sock_fd, ret;
+	char *msg, *json_response;
+	char coll_id[LINELEN];
+	bool success;
+	int ret;
 
-	/* How many movies do we add? */
+	/* Allocate memory for the message which will be printed. */
+	msg = (char *) malloc(100 * (num_movies + 1));
+	DIE(!msg, "malloc() failed\n");
+	msg[0] = '\0';
+
+	/* Inform that the collection was created as empty. */
+	strcat(msg, "Empty collection created succesfully.\n");
+
+	/* Get the collection's id. */
+	json_response = basic_extract_json_response(response);
+	ret = snprintf(coll_id, sizeof(coll_id), "%ld",
+			(size_t) get_number_from_json_string(json_response, "id")
+	);
+	DIE(ret == -1, "snprintf() failed\n");
+
+	/* Try to add every movie in collection.
+	 * Also, keep the message updated. */
+	success = true;
+	for (size_t i = 0; i < num_movies; ++i)
+	{
+		success &= add_movie_to_new_collection(client, coll_id, movie_ids[i], msg);
+	}
+
+	/* Print the message. */
+	if (success)
+	{
+		printf("SUCCESS: The collection was created succesfully\n");
+	}
+	else
+	{
+		printf("ERROR: Not all movies were added succesfully.\n%s", msg);
+	}
+}
+
+static char **read_movies_ids(const size_t num_movies)
+{
+	char **movie_ids;
+	
+	/* Allocate memory for array. */
+	movie_ids = (char **) malloc(num_movies * sizeof(char *));
+	DIE(!movie_ids, "malloc() failed\n");
+
+	/* Allocate memory for every element and read it */
+	for (size_t i = 0; i < num_movies; ++i)
+	{
+		movie_ids[i] = (char *) malloc(LINELEN * sizeof(char));
+		DIE(!movie_ids[i], "malloc() failed\n");
+		
+		printf("movie_id[%ld]=", i);
+		read_line(movie_ids[i], sizeof(movie_ids[i]));
+	}
+
+	return movie_ids;
+}
+
+static size_t read_num_movies()
+{
+	char num_movies_string[LINELEN];
+	size_t num_movies_integer;
+
+	/* Read the number of movies*/
 	printf("num_movies=");
-	read_line(movies_num_str, sizeof(movies_num_str));
+	read_line(num_movies_string, sizeof(num_movies_string));
 
 	/* Did the client introduce a valid number ? */
-	movies_num_sizet = atos(movies_num_str);
-	if (movies_num_sizet == SIZE_T_MAX)
+	num_movies_integer = atos(num_movies_string);
+	if (num_movies_integer == SIZE_T_MAX)
 	{
-		printf("ERROR: Must write an integer number between 0 and %ld\n",
-			SIZE_T_MAX);
-		return;
+		printf("ERROR: Must select an integer number between 0 and %ld\n",
+			SIZE_T_MAX
+		);
 	}
-
-	/* Put movies in collection. */
-	old_sock_fd = client->sock_fd;
-	for (size_t i = 0; i < movies_num_sizet; ++i)
-	{
-		client->sock_fd = open_connection(SRV_IP, SRV_PORT, AF_INET,
-			SOCK_STREAM, 0);
-
-		printf("movie_id[%ld]=", i);
-		read_line(movie_id, sizeof(movie_id));
-
-		add_movie_to_collection(client, coll_id, movie_id);
-
-		ret = close(client->sock_fd); /* What was remains in past */
-		DIE(ret == -1, "close() failed\n");
-	}
-	client->sock_fd = old_sock_fd;
+	return num_movies_integer;
 }
 
-char *get_add_collection_request(const client_t *const client)
+static char *get_add_collection_request(const client_t *const client)
 {
 	char title[LINELEN];
 	char payload[2 * LINELEN];
@@ -789,47 +863,57 @@ char *get_add_collection_request(const client_t *const client)
 			ADD_COLLECTION_CONTENT_TYPE, payload, client->cookie,
 			client->token
 	);
-
 }
 
 void add_collection(client_t *const client)
 {
-	char *request, *response, *json_response;
-	char coll_id[LINELEN];
-	int ret;
+	char *request, *response;
+	size_t num_movies;
+	char **movie_ids;
+	char code[4] = {'\0'};
 
 	/* Create the requset (our letter to server). */
 	request = get_add_collection_request(client);
+
+	/* Read the other fields from stdin. */
+	num_movies = read_num_movies();
+	if (num_movies == SIZE_T_MAX)
+	{
+		free(request);
+		return;
+	}
+	movie_ids = read_movies_ids(num_movies);
 
 	/* Comunicate with the server. */
 	send_to_server(client->sock_fd, request);
 	response = receive_from_server(client->sock_fd);
 
 	/* How did the server answer? */
-	ret = basic_print_http_response_with_content(response);
-	if ( ret == -1)
+	get_http_response_code(response, code);
+	if (code[0] != '2')
 	{
-		ret = basic_print_http_response(response,
-				"Collection created successfully.");
+		printf("ERROR: Empty collection could not be creaated.\n");
 	}
-
-	/* Add movies in the new created world. */
-	if (ret == 2) {
-		json_response = basic_extract_json_response(response);
-
-		ret = snprintf(coll_id, sizeof(coll_id), "%ld",
-				(size_t) get_number_from_json_string(json_response, "id"));
-		DIE(ret == -1, "snprintf() failed\n");
-	
-		add_movies_to_collection(client, coll_id);
+	else
+	{
+		add_movies_to_new_collection(client,
+			(const char *const *const) movie_ids, num_movies,
+			response
+		);
 	}
 
 	/* Free the memory. */
 	free(request);
 	free(response);
+
+	for (size_t i = 0; i < num_movies; ++i)
+	{
+		free(movie_ids[i]);
+	}
+	free(movie_ids);
 }
 
-char *get_delete_collection_request(const client_t *const client)
+static char *get_delete_collection_request(const client_t *const client)
 {
 	char coll_id[LINELEN];
 	char url[2 * LINELEN];
@@ -849,93 +933,46 @@ char *get_delete_collection_request(const client_t *const client)
 	);
 }
 
-void delete_collection(const client_t *const client)
+static void delete_collection(const client_t *const client)
 {
-	char *request, *response;
+	char *response;
 
-	/* Create the requset. */
-	request = get_delete_collection_request(client);
+	response = basic_execute_command(client, get_delete_collection_request,
+			"Collection deleted successfully."
+	);
 
-	/* Comunicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	if (basic_print_http_response_with_content(response) == -1)
-	{
-		basic_print_http_response(response,
-			"Collection deleted successfully.");
-	}
-
-	/* Free the memory. */
-	free(request);
 	free(response);
 }
 
-void print_get_collections_response(const char *response)
+static void print_get_collections_response(const char *response)
 {
-	JSON_Value *json_value;
-	JSON_Array *colls_array;
-	JSON_Object *coll_object;
-	const char *title;
-	size_t id, size;
+	const char *fields[] = {"id", "title"};
+	size_t num_fields = sizeof(fields) / sizeof(fields[0]);
 
-	json_value = get_json_val_from_string(
-		basic_extract_json_response(response)
+	basic_print_response_with_vector(response, "collections", fields,
+		num_fields , "You do not have collections"
 	);
-    colls_array = get_json_array_from_json_val(json_value, "collections");
-
-	size = json_array_get_count(colls_array);
-	if (size == 0)
-	{
-		printf("You do not have movies.\n");
-	}
-
-    for (size_t i = 0; i < size; i++)
-	{
-        coll_object = json_array_get_object(colls_array, i);
-		id = json_object_get_number(coll_object, "id");
-		title = json_object_get_string(coll_object, "title");
-
-        printf("#%lu %s\n", id, title);
-    }
-
-	json_value_free(json_value);
 }
 
-void get_collections(const client_t *const client)
+static char *get_get_collections_request(const client_t *const client)
 {
-	char *request, *response;
-	int ret;
-
-	/* Create the requset. */
-	request = compute_get_request(SRV_IP, SRV_PORT, GET_COLLECTIONS_URL,
+	return compute_get_request(SRV_IP, SRV_PORT, GET_COLLECTIONS_URL,
 			client->cookie, client->token
 	);
-
-	/* Comunicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	ret = basic_print_http_response_with_content(response);
-	if (ret == -1)
-	{
-		ret = basic_print_http_response(response, "Collections list:");
-	}
-	if (ret == 2)
-	{
-		print_get_collections_response(response);
-	}
-
-	/* Free the memory. */
-	free(request);
-	free(response);
 }
 
-void print_get_collection_response(const char *response)
+static void get_collections(const client_t *const client)
+{
+	basic_execute_get_command(client, &get_get_collections_request,
+		"Collections list:", &print_get_collections_response
+	);
+}
+
+static void print_get_collection_response(const char *const response)
 {
 	char *payload, *title, *owner;
+	const char *movie_fields[] = {"id", "title"};
+	size_t num_fields;
 
 	payload = basic_extract_json_response(response);
 
@@ -947,10 +984,13 @@ void print_get_collection_response(const char *response)
 	printf("owner: %s\n", owner);
 	free(owner);
 
-	print_get_movies_response(response);
+	num_fields = sizeof(movie_fields) / sizeof(movie_fields[0]);
+	basic_print_response_with_vector(response, "movies", movie_fields,
+		num_fields , "number of movies: 0"
+	);
 }
 
-char *get_get_collection_request(const client_t *const client)
+static char *get_get_collection_request(const client_t *const client)
 {
 	char coll_id[LINELEN];
 	char url[2 * LINELEN];
@@ -970,35 +1010,15 @@ char *get_get_collection_request(const client_t *const client)
 	);
 }
 
-void get_collection(const client_t *const client)
+static void get_collection(const client_t *const client)
 {
-	char *request, *response;
-	int ret;
-
-	/* Create the requset. */
-	request = get_get_collection_request(client);
-
-	/* Comunicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	ret = basic_print_http_response_with_content(response);
-	if (ret == -1)
-	{
-		ret = basic_print_http_response(response, "The collection was found.");
-	}
-	if (ret == 2)
-	{
-		print_get_collection_response(response);
-	}
-
-	/* Free the memory. */
-	free(request);
-	free(response);
+	basic_execute_get_command(client, &get_get_collection_request,
+		"The collection was found.", &print_get_collection_response
+	);
 }
 
-char *get_delete_movie_from_collection_request(const client_t *const client)
+static char *get_delete_movie_from_collection_request(
+		const client_t *const client)
 {
 	char coll_id[LINELEN];
 	char movie_id[LINELEN];
@@ -1024,31 +1044,15 @@ char *get_delete_movie_from_collection_request(const client_t *const client)
 	);
 }
 
-void delete_movie_from_collection(const client_t *const client)
+static void delete_movie_from_collection(const client_t *const client)
 {
-	char *request, *response;
-
-	/* Create the requset. */
-	request = get_delete_movie_from_collection_request(client);
-	printf("%s\n", request);
-
-	/* Comunicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
-	if (basic_print_http_response_with_content(response) == -1)
-	{
-		basic_print_http_response(response,
-			"Movie deleted from collection successfully.");
-	}
-
-	/* Free the memory. */
-	free(request);
-	free(response);
+	free(basic_execute_command(client,
+			&get_delete_movie_from_collection_request,
+			"Movie deleted from collection successfully.")
+	);
 }
 
-void stop_program(client_t *const client)
+static void stop_program(client_t *const client)
 {
 	int ret;
 
@@ -1069,7 +1073,7 @@ void stop_program(client_t *const client)
 	exit(0);
 }
 
-bool handle_client_command(client_t *const client, const char *command)
+static bool handle_client_command(client_t *const client, const char *command)
 {
 	if (!strcmp(command, LOGIN_ADMIN_CMD))
 	{
@@ -1115,7 +1119,7 @@ bool handle_client_command(client_t *const client, const char *command)
 	return false;
 }
 
-bool handle_movie_command(client_t *const client, const char *command)
+static bool handle_movie_command(client_t *const client, const char *command)
 {
 	if (!strcmp(command, ADD_MOVIE_CMD))
 	{
@@ -1145,7 +1149,8 @@ bool handle_movie_command(client_t *const client, const char *command)
 	return false;
 }
 
-bool handle_coll_command(client_t *const client, const char *const command)
+static bool handle_coll_command(client_t *const client,
+		const char *const command)
 {
 	if (!strcmp(command, ADD_COLLECTION_CMD))
 	{
@@ -1159,17 +1164,7 @@ bool handle_coll_command(client_t *const client, const char *const command)
 	}
 	else if (!strcmp(command, ADD_MOVIE_TO_COLLECTION_CMD))
 	{
-		char coll_id[LINELEN], movie_id[LINELEN];
-
-		/* Get the collection id. */
-		printf("collection_id=");
-		read_line(coll_id, sizeof(coll_id));
-
-		/* Get the movie id. */
-		printf("movie_id=");
-		read_line(movie_id, sizeof(movie_id));
-
-		add_movie_to_collection(client, coll_id, movie_id);
+		add_movie_to_collection(client);
 		return true;
 	}
 	else if (!strcmp(command, DELETE_MOVIE_FROM_COLLECTION_CMD))
@@ -1191,16 +1186,17 @@ bool handle_coll_command(client_t *const client, const char *const command)
 	return false;
 }
 
-void handle_command(client_t *const client) {
+static void handle_command(client_t *const client) {
 	char command[LINELEN];
 	int ret;
 	
 	/* Read command. */
-	read_line(command, LINELEN);
+	read_line(command, sizeof(command));
 
 	/* Open connection. */
 	client->sock_fd = open_connection(SRV_IP, SRV_PORT, AF_INET,
-			SOCK_STREAM, 0);
+			SOCK_STREAM, 0
+	);
 
 	/* Execute the command. */
 	if (handle_client_command(client, command))

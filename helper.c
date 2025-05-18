@@ -1,10 +1,10 @@
-#include <stdlib.h>     /* exit, atoi, malloc, free , strpbrk, strlen*/
+#include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>     /* read, write, close */
-#include <string.h>     /* memcpy, memset */
-#include <sys/socket.h> /* socket, connect */
-#include <netinet/in.h> /* struct sockaddr_in, struct sockaddr */
-#include <netdb.h>      /* struct hostent, gethostbyname */
+#include <unistd.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #include "helper.h"
 #include "buffer.h"
@@ -29,7 +29,8 @@ int open_connection(char *host_ip, int portno, int ip_type,
 
 	/* connect the socket */
 	int ret = connect(sockfd, (struct sockaddr*) &serv_addr,
-				sizeof(serv_addr));
+				sizeof(serv_addr)
+	);
 	DIE(ret < 0, "ERROR connecting");
 
 	return sockfd;
@@ -66,12 +67,14 @@ char *receive_from_server(int sockfd)
 	int header_end = 0;
 	int content_length = 0;
 
-	do {
+	do
+	{
 		int bytes = read(sockfd, response, BUFLEN);
 
 		DIE(bytes < 0, "ERROR reading response from socket");
 
-		if (bytes == 0) {
+		if (bytes == 0)
+		{
 			break;
 		}
 
@@ -80,13 +83,15 @@ char *receive_from_server(int sockfd)
 		header_end = buffer_find(&buffer, HEADER_TERMINATOR,
 						HEADER_TERMINATOR_SIZE);
 
-		if (header_end >= 0) {
+		if (header_end >= 0)
+		{
 			header_end += HEADER_TERMINATOR_SIZE;
 			
 			int content_length_start = buffer_find_insensitive(&buffer,
 						CONTENT_LENGTH, CONTENT_LENGTH_SIZE);
 			
-			if (content_length_start < 0) {
+			if (content_length_start < 0)
+			{
 				continue;           
 			}
 
@@ -104,7 +109,8 @@ char *receive_from_server(int sockfd)
 
 		DIE(bytes < 0, "ERROR reading response from socket");
 
-		if (bytes == 0) {
+		if (bytes == 0)
+		{
 			break;
 		}
 
@@ -120,7 +126,8 @@ char *basic_extract_json_response(const char *const str)
 	return strstr(str, "{\"");
 }
 
-char *extract_from_http_response(const char *const response, char *field)
+char *extract_from_http_response(const char *const response,
+		const char *const field)
 {
 	char *start_line = strstr(response, field);
 	if (!start_line)
@@ -193,7 +200,7 @@ double get_number_from_json_string(char* json_string, char *field_name)
 	return field_value;
 }
 
-void read_line(char *buff, int len)
+void read_line(char *const buff, const int len)
 {
 	char *ret;
 

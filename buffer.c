@@ -12,7 +12,8 @@ buffer buffer_init(void)
 
 void buffer_destroy(buffer *buffer)
 {
-    if (buffer->data != NULL) {
+    if (buffer->data != NULL)
+    {
         free(buffer->data);
         buffer->data = NULL;
     }
@@ -27,9 +28,12 @@ int buffer_is_empty(buffer *buffer)
 
 void buffer_add(buffer *buffer, const char *data, size_t data_size)
 {
-    if (buffer->data != NULL) {
+    if (buffer->data != NULL)
+    {
         buffer->data = realloc(buffer->data, (buffer->size + data_size) * sizeof(char));
-    } else {
+    }
+    else
+    {
         buffer->data = malloc(data_size * sizeof(char));
     }
 
@@ -41,21 +45,28 @@ void buffer_add(buffer *buffer, const char *data, size_t data_size)
 int buffer_find(buffer *buffer, const char *data, size_t data_size)
 {
     if (data_size > buffer->size)
+    {
         return -1;
+    }
 
     size_t last_pos = buffer->size - data_size + 1;
 
-    for (size_t i = 0; i < last_pos; ++i) {
+    for (size_t i = 0; i < last_pos; ++i)
+    {
         size_t j;
 
-        for (j = 0; j < data_size; ++j) {
-            if (buffer->data[i + j] != data[j]) {
+        for (j = 0; j < data_size; ++j)
+        {
+            if (buffer->data[i + j] != data[j])
+            {
                 break;
             }
         }
 
         if (j == data_size)
+        {
             return i;
+        }
     }
 
     return -1;
@@ -64,21 +75,28 @@ int buffer_find(buffer *buffer, const char *data, size_t data_size)
 int buffer_find_insensitive(buffer *buffer, const char *data, size_t data_size)
 {
     if (data_size > buffer->size)
+    {
         return -1;
+    }
 
     size_t last_pos = buffer->size - data_size + 1;
 
-    for (size_t i = 0; i < last_pos; ++i) {
+    for (size_t i = 0; i < last_pos; ++i)
+    {
         size_t j;
 
-        for (j = 0; j < data_size; ++j) {
-            if (tolower(buffer->data[i + j]) != tolower(data[j])) {
+        for (j = 0; j < data_size; ++j)
+        {
+            if (tolower(buffer->data[i + j]) != tolower(data[j]))
+            {
                 break;
             }
         }
 
         if (j == data_size)
+        {
             return i;
+        }
     }
 
     return -1;

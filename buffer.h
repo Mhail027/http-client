@@ -25,4 +25,6 @@ int buffer_find(buffer *buffer, const char *data, size_t data_size);
 
 /* Finds data of size data_size in a buffer in a
  * case-insensitive fashion and returns its position. */
-int buffer_find_insensitive(buffer *buffer, const char *data, size_t data_size);
+int buffer_find_insensitive(buffer *buffer, const char *data,
+    size_t data_size
+);

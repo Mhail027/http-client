@@ -1,10 +1,10 @@
-#include <stdlib.h>     /* exit, atoi, malloc, free */
+#include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>     /* read, write, close */
-#include <string.h>     /* memcpy, memset */
-#include <sys/socket.h> /* socket, connect */
-#include <netinet/in.h> /* struct sockaddr_in, struct sockaddr */
-#include <netdb.h>      /* struct hostent, gethostbyname */
+#include <unistd.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #include "helper.h"
 #include "requests.h"
@@ -22,7 +22,8 @@ static void add_cookie(char *message, char *cookie, char *line)
 {
 	int ret;
 
-	if (cookie) {
+	if (cookie)
+	{
 		ret = sprintf(line, "Cookie: %s", cookie);
 		DIE(ret < 0, "sprintf() failed\n");
     	compute_message(message, line);
@@ -33,7 +34,8 @@ static void add_token(char *message, char *token, char *line)
 {
 	int ret;
 
-	if (token) {
+	if (token)
+	{
 		ret = sprintf(line, "Authorization: Bearer %s", token);
 		DIE(ret < 0, "sprintf() failed\n");
     	compute_message(message, line);
