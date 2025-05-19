@@ -1,56 +1,98 @@
-# PCom HTTP Client Checker
+README
+====
 
-This repository contains checker for the PCom HTTP client homework.
+***Title: HTTP Client***
 
-## Prerequisites
+**Author: Necula Mihail**
 
-Dependencies:
+**Group: 323CAa**
 
-- Python >= 3.7;
-- [`pexpect`](https://pexpect.readthedocs.io/en/stable/) (third party package for console automation);
-- [`pyyaml`](https://pypi.org/project/PyYAML/) (third party package for YAML);
+**University year: 2024 - 2025**
 
-It is highly recommended to use a VirtualEnv, either by using the bundled
-Makefile or by manually installing the dependencies:
-```sh
-# symply run:
-make
-# this will do the same as:
-python3 -mvenv .venv
-.venv/bin/python3 -mpip install -r requirements.txt
-# Note: you need to source activate each time you start a new terminal
-source .venv/bin/activate
-```
+---
 
-### Usage
+Chapter 1 - The commands' implementation
+====
 
-Invoke the checker on your client's compiled executable:
+<img src="media/frozen.jpeg" style="float: left; margin-right: 20px; width: 330px;">
 
-```sh
-# !!! don't forget to source .venv/bin/activate !!!
-# first, read the tool's internal help:
-python3 checker.py --help 
-# run the checker using default settings:
-python3 checker.py ../path/to/client
-# you MUST supply a valid admin user & password!
-python3 checker.py --admin 'myadminuser:hunter2' ../path-to/client
-```
+<pre style="font-family: inherit; font-size: inherit; line-height: inherit; color: inherit; background: transparent; border: none">
+In total, the client can use 20 commands, which can be seen in the file "client.h". 19
+of the 20 follow a similar pattern:
+		1. Create a HTTP request. (In some cases, ask additional information to
+		   complete the request.)
+		2. Communicate with the server. (Send the request. + Receive an answer.)
+		3. Print a basic message to resume the received response. The message has
+		   always the format "ERROR: %s" or "SUCCESS: %s".
+		4. Print more specific data from response if it's the case. We need this step
+		   for commands such as "get_users", "get_movie", "get_movies" and so on.
+</pre>
 
-The default test script uses the admin user to create a random normal test user.
-This will ensure a clean slate while doing all other tests (since the server 
-persists all edits inside a database).
+<pre style="font-family: inherit; font-size: inherit; line-height: inherit; color: inherit; background: transparent; border: none">
+The only command that needs special attention is "add_collection". This happens
+because, to complete it, we need to send more requests to server. We will follow
+the previous pattern, but we will go trough it more times. In this case, the forth
+step does not exit. More, in the third one, we do not print the messages immediately.
+We stack them in a buffer and print them together with an only label of type ERROR /
+SUCCESS, at the final of the command's execution.
 
-Alternately, you can use e.g., `--script CLEANUP` if you have a functioning
-implementation for `get_users` and `delete_user` to quickly cleanup your
-associated users & other database items.
+If would have been my choice, i would have printed after every movie's id introduced,
+if it was added in collection or not. Unfortunately, the checker does not let this to
+happen and I can not change its behavior (at least for now). So, the only solution was
+to stack the messages for this command, "add_collection". 
+</pre>
 
-Also make sure to check out [the source code](./checker.py) for the
-actual details about the script(s) being tested.
+---
 
-<span style="color: #A33">**Warning**: This _alpha version!_ script is just an 
-instrument used by our team to automate the homework verification process.
-If any bugs affecting its effectiveness are found, we reserve the right to
-correct them at any time (you will be notified when this is the case).
-When in doubt, use the homework text as the rightful source of truth and use the
-Moodle Forum to ask any questions.
-</span>
+Chapter 2 - Flow of the program
+====
+
+<pre style="font-family: inherit; font-size: inherit; line-height: inherit; color: inherit; background: transparent; border: none">
+
+The function basic_execute_command(), which implement the common pattern,
+has the next flow:
+		basic_execute_command() -> get_request() -> read_line(), sometimes
+								     -> send_to_server()
+								     -> receive_from_server()
+								     -> basic_print_http_response_with_content()
+								     -> basic_print_http_response()
+								     -> print_response()
+
+LOGIN_ADMIN:
+	main() -> handle_command() -> handle_client_command() ->
+	-> login_admin() -> basic_execute_command()
+					 -> get_new_cookie()
+
+LOGOUT_ADMIN:
+	main() -> handle_command() -> handle_client_command() ->
+	-> logout_admin() -> basic_execute_command()
+					    -> delete_client_info()
+
+LOGIN:
+	main() -> handle_command() -> handle_client_command() ->
+	-> login() -> basic_execute_command()
+			  -> get_new_cookie()
+
+LOGOUT_ADMIN:
+	main() -> handle_command() -> handle_client_command() ->
+	-> logout() -> basic_execute_command()
+			     -> delete_client_info()
+
+GET_ACCESS
+	main() -> handle_command() -> handle_client_command() ->
+	-> get_access() -> basic_execute_command()
+				     -> get_new_token()
+
+ADD_COLLECTION()
+	main() -> handle_command() -> handle_coll_command() ->
+	-> add_collection() -> read_num_movies()
+					     -> read_movies_ids()
+					     -> add_movies_to_new_collection() -> add_movie_to_new_collection()
+
+All the others commands follow the next "road":
+	main() -> handle_command() -> handle_client_command() /
+	handle_movie_command() / handle_coll_command() ->
+	-> name_of_the_command() -> basic_execute_command()
+</pre>
+
+---

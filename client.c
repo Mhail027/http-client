@@ -12,6 +12,7 @@
 #include "parson.h"
 #include "client.h"
 
+
 /*************************************
  * @brief Initialize the client's info.
  *
@@ -108,22 +109,26 @@ static void delete_client_info(client_t *const client,
 
 /*************************************
  * @brief Create a HTTP request. Send the request to server. Receive
- * a response from server. Interpretate the answer in a basic mode
- * and print it to stdout.
+ * a response from server. Interpret the answer in a basic mode and
+ * print it to stdout.
  *
  * @param client info
  * @param get_funct function which create the request which will be
  * sent to server
  * @param backup_success_msg message which will be printed on success,
  * if the server does not have a field named message in payload 
+ * @param print_response function to print the payload of the response,
+ * if the request finished with success.
  *
  * @return the response of the server
  *************************************/
 static char *basic_execute_command(const client_t *const client,
 		char *(*const get_request)(const client_t *const),
-		const char *const backup_success_msg)
+		const char *const backup_success_msg,
+		void (*const print_response)(const char *const))
 {
 	char *request, *response;
+	int ret;
 	
 	/* Create the request. */
 	request = get_request(client);
@@ -137,63 +142,20 @@ static char *basic_execute_command(const client_t *const client,
 	response = receive_from_server(client->sock_fd);
 
 	/* How did the server answer? */
-	if (basic_print_http_response_with_content(response) == -1)
-	{
-		basic_print_http_response(response, backup_success_msg);
-	}
-
-	/* Free the memory. */
-	free(request);
-
-	return response;
-}
-
-/*************************************
- * @brief Create a HTTP get request. Send the request to server. Receive
- * a response from server. Interpretate the answer in a basic mode and
- * print it to stdout.
- *
- * @param client info
- * @param get_funct function which create the request which will be
- * sent to server
- * @param backup_success_msg message which will be printed on success,
- * if the server does not have a field named message in payload 
- * @param print_response function to print the payload of the response,
- * if the request finished with success.
- *************************************/
-static void basic_execute_get_command(const client_t *const client,
-		char *(*const get_request)(const client_t *const),
-		const char *const backup_success_msg,
-		void (*const print_response)(const char *const))
-{
-	char *request, *response;
-	int ret;
-	
-	/* Create the request. */
-	request = get_request(client);
-	if (!request)
-	{
-		return;
-	}
-
-	/* Communicate with the server. */
-	send_to_server(client->sock_fd, request);
-	response = receive_from_server(client->sock_fd);
-
-	/* How did the server answer? */
 	ret = basic_print_http_response_with_content(response);
 	if (ret == -1)
 	{
 		ret = basic_print_http_response(response, backup_success_msg);
 	}
-	if (ret == 2)
+	if (ret == 2 && print_response)
 	{
 		print_response(response);
 	}
 
 	/* Free the memory. */
 	free(request);
-	free(response);
+
+	return response;
 }
 
 /*************************************
@@ -204,11 +166,11 @@ static void basic_execute_get_command(const client_t *const client,
  * @param response from server
  * @param array_name from response's payload
  * @param fields which will be printed for every element from array;
- * the first field should store just number; the otehrs must store just
+ * the first field should store just number; the others must store just
  * strings
  * @param num_fields number of fields printed for every element; must be
  * at least 1
- * @param empty_array_msg that will be used just if the array has 0
+ * @param empty_array_msg that will be printed just if the array has 0
  * elements
  *************************************/
 static void basic_print_response_with_vector(const char *const response,
@@ -218,7 +180,8 @@ static void basic_print_response_with_vector(const char *const response,
 	JSON_Value *json_value;
 	JSON_Array *json_array;
 	JSON_Object *json_object;
-	size_t size, pos;
+	const char *field_value;
+	size_t size;
 
 	/* Get the array. */
 	json_value = get_json_val_from_string(
@@ -233,7 +196,7 @@ static void basic_print_response_with_vector(const char *const response,
 		printf("%s\n", empty_array_msg);
 	}
 
-	/* Print the array alement by element. */
+	/* Print the array element by element. */
     for (size_t i = 0; i < size; i++)
 	{
         json_object = json_array_get_object(json_array, i);
@@ -246,18 +209,21 @@ static void basic_print_response_with_vector(const char *const response,
 		/* The middle subfields */
 		for (int j = 1; j < num_fields - 1; ++j)
 		{
-			printf("%s:",
-				json_object_get_string(json_object, fields[j])
-			);
+			field_value = json_object_get_string(json_object, fields[j]);
+			DIE(!field_value, "json_object_get_string() failed\n");
+
+			printf("%s:", field_value);
 		}
 
 		/* The last subfields */
 		if (num_fields >= 2)
 		{
-			pos = num_fields - 1;
-			printf("%s\n",
-				json_object_get_string(json_object, fields[pos])
+			field_value = json_object_get_string(json_object,
+					fields[num_fields - 1]
 			);
+			DIE(!field_value, "json_object_get_string() failed\n");
+
+			printf("%s\n", field_value);
 		}
     }
 
@@ -266,7 +232,7 @@ static void basic_print_response_with_vector(const char *const response,
 }
 
 /*************************************
- * @brief Verify if a atring can be converted to size_t. If not, 
+ * @brief Verify if a string can be converted to size_t. If not, 
  * print an error message.
  *
  * @param field_name for which was introduced the value
@@ -275,12 +241,12 @@ static void basic_print_response_with_vector(const char *const response,
  * @return true, if the string can be converted to size_t
  *		   false,else
  *************************************/
-static bool nonneg_integer_is_valid(const char *const field_name,
+static bool is_nonneg_integer(const char *const field_name,
 		const char *const field_val)
 {
 	if (atos(field_val) == SIZE_T_MAX)
 	{
-		printf("ERROR: The %s must be a integer between 0 and %ld\n",
+		printf("ERROR: The %s must be a integer between 0 and %lu\n",
 			field_name, SIZE_T_MAX - 1
 		);
 		return false;
@@ -299,7 +265,7 @@ static char *get_login_admin_request(const client_t *const client)
 	printf("username=");
 	read_line(username, sizeof(username));
 
-	/* Get the pasword. */
+	/* Get the password. */
 	printf("password=");
 	read_line(password, sizeof(password));
 
@@ -320,17 +286,20 @@ static void login_admin(client_t *const client)
 	char *response;
 
 	response = basic_execute_command(client, &get_login_admin_request,
-			"Admin logged in successfully.");
+			"Admin logged in successfully.", NULL
+	);
 	get_new_cookie(client, response);
 
-	free(response);
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static char *get_logout_admin_request(const client_t *const client)
 {
 	return compute_get_request(SRV_IP, SRV_PORT, LOGOUT_ADMIN_URL,
-				client->cookie, client->token
-	);
+				client->cookie, client->token);
 }
 
 static void logout_admin(client_t *const client)
@@ -338,10 +307,14 @@ static void logout_admin(client_t *const client)
 	char *response;
 
 	response = basic_execute_command(client, &get_logout_admin_request,
-			"Admin logged out successfully.");
+			"Admin logged out successfully.", NULL
+	);
 	delete_client_info(client, response);
 
-	free(response);
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static char *get_login_request(const client_t *const client)
@@ -360,7 +333,7 @@ static char *get_login_request(const client_t *const client)
 	printf("username=");
 	read_line(username, sizeof(username));
 
-	/* Get the pasword. */
+	/* Get the password. */
 	printf("password=");
 	read_line(password, sizeof(password));
 
@@ -381,11 +354,14 @@ static void login(client_t *const client)
 	char *response;
 
 	response = basic_execute_command(client, &get_login_request,
-			"User logged in successfully."
+			"User logged in successfully.", NULL
 	);
 	get_new_cookie(client, response);
 
-	free(response);
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static char *get_logout_request(const client_t *const client)
@@ -400,11 +376,14 @@ static void logout(client_t *const client)
 	char *response;
 
 	response = basic_execute_command(client, &get_logout_request,
-			"User logged out successfully."
+			"User logged out successfully.", NULL
 	);
 	delete_client_info(client, response);
 
-	free(response);
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static char *get_add_user_request(const client_t *const client)
@@ -418,7 +397,7 @@ static char *get_add_user_request(const client_t *const client)
 	printf("username=");
 	read_line(username, sizeof(username));
 
-	/* Get the pasword. */
+	/* Get the password. */
 	printf("password=");
 	read_line(password, sizeof(password));
 
@@ -436,10 +415,16 @@ static char *get_add_user_request(const client_t *const client)
 
 static void add_user(const client_t *const client)
 {
-	free(basic_execute_command(client,
-			&get_add_user_request,
-			"The user was addes successfully.")
+	char *response;
+
+	response = basic_execute_command(client, &get_add_user_request,
+			"The user was added successfully.", NULL
 	);
+
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static char *get_delete_user_request(const client_t *const client)
@@ -464,10 +449,16 @@ static char *get_delete_user_request(const client_t *const client)
 
 static void delete_user(const client_t *const client)
 {
-	free(basic_execute_command(client,
-			&get_delete_user_request,
-			"The user was deleted successfully.")
+	char *response;
+	
+	response = basic_execute_command(client, &get_delete_user_request,
+			"The user was deleted successfully.", NULL
 	);
+
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static void print_get_users_response(const char *const response)
@@ -476,7 +467,7 @@ static void print_get_users_response(const char *const response)
 	size_t num_fields = sizeof(fields) / sizeof(fields[0]);
 
 	basic_print_response_with_vector(response, "users", fields,
-		num_fields , "You do not have users"
+		num_fields , "You do not have users."
 	);
 }
 
@@ -489,12 +480,19 @@ static char *get_get_users_request(const client_t *const client)
 
 static void get_users(const client_t *const client)
 {
-	basic_execute_get_command(client, &get_get_users_request,
+	char *response;
+
+	response = basic_execute_command(client, &get_get_users_request,
 			"Users list:", &print_get_users_response
 	);
+
+	if (response)
+	{
+		free(response);
+	}
 }
 
-static char *get_get_acces_request(const client_t *const client)
+static char *get_get_access_request(const client_t *const client)
 {
 	return compute_get_request(SRV_IP, SRV_PORT,
 			GET_ACCESS_URL,	client->cookie, client->token
@@ -505,12 +503,15 @@ static void get_access(client_t *const client)
 {
 	char *response;
 
-	response = basic_execute_command(client, get_get_acces_request,
-			"Received THE JWT token."
+	response = basic_execute_command(client, get_get_access_request,
+			"Received THE JWT token.", NULL
 	);
 	get_new_token(client, response);
 
-	free(response);
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static void print_get_movies_response(const char *const response)
@@ -532,9 +533,16 @@ static char *get_get_movies_request(const client_t *const client)
 
 static void get_movies(const client_t *const client)
 {
-	basic_execute_get_command(client, &get_get_movies_request,
+	char *response;
+
+	response = basic_execute_command(client, &get_get_movies_request,
 			"Movies list:", &print_get_movies_response
 	);
+
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static char *get_get_movie_request(const client_t *const client)
@@ -548,7 +556,7 @@ static char *get_get_movie_request(const client_t *const client)
 	read_line(id, LINELEN);
 
 	/* Does the id is valid? */
-	if (!nonneg_integer_is_valid("id", id))
+	if (!is_nonneg_integer("id", id))
 	{
 		return NULL;
 	}
@@ -576,9 +584,16 @@ static void print_get_movie_response(const char *const response)
 
 static void get_movie(const client_t *const client)
 {
-	basic_execute_get_command(client, &get_get_movie_request,
-		"The movie was found.", &print_get_movie_response
+	char *response;
+	
+	response = basic_execute_command(client, &get_get_movie_request,
+			"The movie was found.", &print_get_movie_response
 	);
+
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static char *get_add_movie_request(const client_t *const client)
@@ -606,6 +621,12 @@ static char *get_add_movie_request(const client_t *const client)
 	printf("rating=");
 	read_line(rating, sizeof(rating));
 
+	/* Does the year is valid? */
+	if (!is_nonneg_integer("year", year))
+	{
+		return NULL;
+	}
+
 	/* Create the payload. */
 	ret = snprintf(payload, sizeof(payload), ADD_MOVIE_CONTENT_FORMAT,
 			title, year, description, rating
@@ -620,10 +641,16 @@ static char *get_add_movie_request(const client_t *const client)
 
 static void add_movie(const client_t *const client)
 {
-	free(basic_execute_command(client,
-			&get_add_movie_request,
-			"Movie added successfully.")
+	char *response;
+
+	response = basic_execute_command(client, &get_add_movie_request,
+			"Movie added successfully.", NULL
 	);
+
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static char *get_delete_movie_request(const client_t *const client)
@@ -632,9 +659,15 @@ static char *get_delete_movie_request(const client_t *const client)
 	char url[2 * LINELEN];
 	int ret;
 
-	/* Get the title. */
+	/* Get the id. */
 	printf("id=");
 	read_line(id, sizeof(id));
+
+	/* Does the id is valid? */
+	if (!is_nonneg_integer("id", id))
+	{
+		return NULL;
+	}
 
 	/* Complete the url. */
 	ret = snprintf(url, sizeof(url), DELETE_MOVIE_URL, id);
@@ -647,10 +680,16 @@ static char *get_delete_movie_request(const client_t *const client)
 
 static void delete_movie(const client_t *const client)
 {
-	free(basic_execute_command(client,
-			&get_delete_movie_request,
-			"Movie deleted successfully.")
+	char *response;
+
+	response = basic_execute_command(client, &get_delete_movie_request,
+			"Movie deleted successfully.", NULL
 	);
+
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static char *get_update_movie_request(const client_t *const client)
@@ -689,14 +728,8 @@ static char *get_update_movie_request(const client_t *const client)
 	read_line(rating, sizeof(rating));
 
 	/* Does the id  and the year are valid? */
-	if (!nonneg_integer_is_valid("id", id) ||
-		!nonneg_integer_is_valid("year", year))
-	{
-		return NULL;
-	}
-
-	/* Does the year is valid? */
-	if (!nonneg_integer_is_valid("id", id))
+	if (!is_nonneg_integer("id", id) ||
+		!is_nonneg_integer("year", year))
 	{
 		return NULL;
 	}
@@ -715,10 +748,16 @@ static char *get_update_movie_request(const client_t *const client)
 
 static void update_movie(const client_t *const client)
 {
-	free(basic_execute_command(client,
-			&get_update_movie_request,
-			"Movie updated successfully.")
+	char *response;
+
+	response = basic_execute_command(client, &get_update_movie_request,
+			"Movie updated successfully.", NULL
 	);
+
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static char *get_add_movie_to_collection_request(const client_t *const client)
@@ -738,8 +777,8 @@ static char *get_add_movie_to_collection_request(const client_t *const client)
 	read_line(movie_id, sizeof(movie_id));
 
 	/* Does the ids are valid? */
-	if (!nonneg_integer_is_valid("collection_id", coll_id) ||
-		!nonneg_integer_is_valid("movie_id", movie_id))
+	if (!is_nonneg_integer("collection_id", coll_id) ||
+		!is_nonneg_integer("movie_id", movie_id))
 	{
 		return NULL;
 	}
@@ -764,11 +803,34 @@ static char *get_add_movie_to_collection_request(const client_t *const client)
 
 static void add_movie_to_collection(const client_t *const client)
 {
-	free(basic_execute_command(client, &get_add_movie_to_collection_request,
-		"Movie addes to collection succesfully.")
+	char *response;
+
+	response = basic_execute_command(
+		client,
+		&get_add_movie_to_collection_request,
+		"Movie added to collection successfully.",
+		NULL
 	);
+
+	if (response)
+	{
+		free(response);
+	}
 }
 
+/*************************************
+ * @brief Add a movie to a new collection that was just created. This
+ * function should be called just when is in execution the "add_collection"
+ * command. + Update the message which will be printed by that command.
+ *
+ * @param client info
+ * @param coll_id as tring (taken from server, so must be valid)
+ * @param movie_id as string (taken from user, so could be invalid)
+ * @param msg that will be printed at final of the command "add_collection"
+ *
+ * @return true, if the movies was added successfully
+ *		   false, else
+ *************************************/
 static bool add_movie_to_new_collection(const client_t *const client,
 		const char *const coll_id, const char *const movie_id,
 		char *const msg)
@@ -779,6 +841,16 @@ static bool add_movie_to_new_collection(const client_t *const client,
 	char code[4] = {'\0'};
 	int sock_fd, ret;
 	bool success;
+
+	/* Does the movie id is valid? */
+	if (atos(movie_id) == SIZE_T_MAX)
+	{
+		ret = snprintf(msg + strlen(msg), 100,
+			"#%s Invalid movie id\n", movie_id
+		);
+		DIE(ret == -1, "snprintf() failed\n");
+		return false;
+	}
 
 	/* Create the payload. */
 	ret = snprintf(payload, sizeof(payload),
@@ -796,7 +868,7 @@ static bool add_movie_to_new_collection(const client_t *const client,
 			client->cookie, client->token
 	);
 
-	/* Comunicate with the server. */
+	/* Communicate with the server. */
 	sock_fd = open_connection(SRV_IP, SRV_PORT, AF_INET,
 			SOCK_STREAM, 0
 	);
@@ -830,6 +902,20 @@ static bool add_movie_to_new_collection(const client_t *const client,
 	return success;
 }
 
+/*************************************
+ * @brief Add movies to a new collection that was just created. This
+ * function should be called just when is in execution the "add_collection"
+ * command. + Print the ERROR / SUCCESS command for that command.
+ *
+ * @param client info
+ * @param movie_ids as string vector
+ * @param num_movies size of the array
+ * @param response of the server for the the request of creating a new empty
+ * collection; the response is of success and contain the collection id
+ *
+ * @return true, if the movies was added successfully
+ *		   false, else
+ *************************************/
 static void add_movies_to_new_collection(const client_t *const client,
 		const char *const *const movie_ids, const size_t num_movies,
 		const char *const response)
@@ -845,7 +931,7 @@ static void add_movies_to_new_collection(const client_t *const client,
 	msg[0] = '\0';
 
 	/* Inform that the collection was created as empty. */
-	strcat(msg, "Empty collection created succesfully.\n");
+	strcat(msg, "Empty collection created successfully.\n");
 
 	/* Get the collection's id. */
 	json_response = basic_extract_json_response(response);
@@ -865,12 +951,15 @@ static void add_movies_to_new_collection(const client_t *const client,
 	/* Print the message. */
 	if (success)
 	{
-		printf("SUCCESS: The collection was created succesfully\n");
+		printf("SUCCESS: The collection was created successfully\n");
 	}
 	else
 	{
-		printf("ERROR: Not all movies were added succesfully.\n%s", msg);
+		printf("ERROR: Not all movies were added successfully.\n%s", msg);
 	}
+
+	/* Free the memory. */
+	free(msg);
 }
 
 static char **read_movies_ids(const size_t num_movies)
@@ -907,7 +996,8 @@ static size_t read_num_movies()
 	num_movies_integer = atos(num_movies_string);
 	if (num_movies_integer == SIZE_T_MAX)
 	{
-		printf("ERROR: Must select an integer number between 0 and %ld\n",
+		printf(
+			"ERROR: Must select an integer number between 0 and %ld\n",
 			SIZE_T_MAX - 1
 		);
 	}
@@ -944,7 +1034,7 @@ void add_collection(client_t *const client)
 	char **movie_ids;
 	char code[4] = {'\0'};
 
-	/* Create the requset (our letter to server). */
+	/* Create the request (our letter to server). */
 	request = get_add_collection_request(client);
 
 	/* Read the other fields from stdin. */
@@ -956,7 +1046,7 @@ void add_collection(client_t *const client)
 	}
 	movie_ids = read_movies_ids(num_movies);
 
-	/* Comunicate with the server. */
+	/* Communicate with the server. */
 	send_to_server(client->sock_fd, request);
 	response = receive_from_server(client->sock_fd);
 
@@ -964,7 +1054,7 @@ void add_collection(client_t *const client)
 	get_http_response_code(response, code);
 	if (code[0] != '2')
 	{
-		printf("ERROR: Empty collection could not be creaated.\n");
+		printf("ERROR: Empty collection could not be created.\n");
 	}
 	else
 	{
@@ -996,7 +1086,7 @@ static char *get_delete_collection_request(const client_t *const client)
 	read_line(coll_id, sizeof(coll_id));
 
 	/* Does the id is valid? */
-	if (!nonneg_integer_is_valid("id", coll_id))
+	if (!is_nonneg_integer("id", coll_id))
 	{
 		return NULL;
 	}
@@ -1016,10 +1106,13 @@ static void delete_collection(const client_t *const client)
 	char *response;
 
 	response = basic_execute_command(client, get_delete_collection_request,
-			"Collection deleted successfully."
+			"Collection deleted successfully.", NULL
 	);
 
-	free(response);
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static void print_get_collections_response(const char *response)
@@ -1041,9 +1134,16 @@ static char *get_get_collections_request(const client_t *const client)
 
 static void get_collections(const client_t *const client)
 {
-	basic_execute_get_command(client, &get_get_collections_request,
+	char *response;
+
+	response = basic_execute_command(client, &get_get_collections_request,
 		"Collections list:", &print_get_collections_response
 	);
+
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static void print_get_collection_response(const char *const response)
@@ -1079,7 +1179,7 @@ static char *get_get_collection_request(const client_t *const client)
 	read_line(coll_id, sizeof(coll_id));
 
 	/* Does the id is valid? */
-	if (!nonneg_integer_is_valid("id", coll_id))
+	if (!is_nonneg_integer("id", coll_id))
 	{
 		return NULL;
 	}
@@ -1096,9 +1196,16 @@ static char *get_get_collection_request(const client_t *const client)
 
 static void get_collection(const client_t *const client)
 {
-	basic_execute_get_command(client, &get_get_collection_request,
+	char *response;
+
+	response = basic_execute_command(client, &get_get_collection_request,
 		"The collection was found.", &print_get_collection_response
 	);
+
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static char *get_delete_movie_from_collection_request(
@@ -1118,8 +1225,8 @@ static char *get_delete_movie_from_collection_request(
 	read_line(movie_id, sizeof(movie_id));
 
 	/* Does the ids are valid? */
-	if (!nonneg_integer_is_valid("collection_id", coll_id) ||
-		!nonneg_integer_is_valid("movie_id", movie_id))
+	if (!is_nonneg_integer("collection_id", coll_id) ||
+		!is_nonneg_integer("movie_id", movie_id))
 	{
 		return NULL;
 	}
@@ -1137,10 +1244,19 @@ static char *get_delete_movie_from_collection_request(
 
 static void delete_movie_from_collection(const client_t *const client)
 {
-	free(basic_execute_command(client,
-			&get_delete_movie_from_collection_request,
-			"Movie deleted from collection successfully.")
+	char *response;
+
+	response = basic_execute_command(
+		client,
+		&get_delete_movie_from_collection_request,
+		"Movie deleted from collection successfully.",
+		NULL
 	);
+
+	if (response)
+	{
+		free(response);
+	}
 }
 
 static void stop_program(client_t *const client)

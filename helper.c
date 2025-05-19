@@ -293,11 +293,15 @@ JSON_Array *get_json_array_from_json_val(JSON_Value *value,
 	const char *const field_name)
 {
 	JSON_Object *object;
+	JSON_Array  *array;
 
 	object = json_value_get_object(value);
 	DIE(object == NULL, "json_value_get_object() failed\n");
 
-	return json_object_get_array(object, field_name);
+	array = json_object_get_array(object, field_name);
+	DIE(array == NULL, "json_object_get_array() failed\n");
+
+	return array;
 }
 
 char *get_pretty_string_from_json_string(const char *string)
