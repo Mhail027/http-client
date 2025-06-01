@@ -49,62 +49,62 @@ Chapter 2 - Flow of the program
 
 ```
 The function basic_execute_command(), which implement the common pattern, has the next flow:
-		basic_execute_command() -> get_request() -> read_line(), sometimes
-								-> send_to_server()
-								-> receive_from_server()
-								-> basic_print_http_response_with_content()
-								-> basic_print_http_response()
-								-> print_response()
+  basic_execute_command() -> get_request() -> read_line(), sometimes
+        -> send_to_server()
+        -> receive_from_server()
+        -> basic_print_http_response_with_content()
+        -> basic_print_http_response()
+        -> print_response()
 ```
 
 ```
 LOGIN_ADMIN:
-	main() -> handle_command() -> handle_client_command() ->
-	-> login_admin() -> basic_execute_command()
-					 -> get_new_cookie()
+ main() -> handle_command() -> handle_client_command() ->
+ -> login_admin() -> basic_execute_command()
+      -> get_new_cookie()
 ```
 
 ```
 LOGOUT_ADMIN:
-	main() -> handle_command() -> handle_client_command() ->
-	-> logout_admin() -> basic_execute_command()
-					  -> delete_client_info()
+ main() -> handle_command() -> handle_client_command() ->
+ -> logout_admin() -> basic_execute_command()
+       -> delete_client_info()
 ```
 
 ```
 LOGIN:
-	main() -> handle_command() -> handle_client_command() ->
-	-> login() -> basic_execute_command()
-	 		   -> get_new_cookie()
+ main() -> handle_command() -> handle_client_command() ->
+ -> login() -> basic_execute_command()
+       -> get_new_cookie()
 ```
 
 ```
 LOGOUT_ADMIN:
-	main() -> handle_command() -> handle_client_command() ->
-	-> logout() -> basic_execute_command()
-			    -> delete_client_info()
+ main() -> handle_command() -> handle_client_command() ->
+ -> logout() -> basic_execute_command()
+       -> delete_client_info()
 ```
 
 ```
 GET_ACCESS
-	main() -> handle_command() -> handle_client_command() ->
-	-> get_access() -> basic_execute_command()
-				    -> get_new_token()
+ main() -> handle_command() -> handle_client_command() ->
+ -> get_access() -> basic_execute_command()
+        -> get_new_token()
 ```
 
 ```
 ADD_COLLECTION()
-	main() -> handle_command() -> handle_coll_command() ->
-	-> add_collection() -> read_num_movies()
-					    -> read_movies_ids()
-					    -> add_movies_to_new_collection() -> add_movie_to_new_collection()
+ main() -> handle_command() -> handle_coll_command() ->
+ -> add_collection() -> read_num_movies()
+         -> read_movies_ids()
+         -> add_movies_to_new_collection() -> add_movie_to_new_collection()
 ```
 
 ```
 All the others commands follow the next "road":
-	main() -> handle_command() -> handle_client_command() /
-	handle_movie_command() / handle_coll_command() ->
-	-> name_of_the_command() -> basic_execute_command()
+ main() -> handle_command() -> handle_client_command() /
+ handle_movie_command() / handle_coll_command() ->
+ -> name_of_the_command() -> basic_execute_command()
 ```
 
 ---
@@ -118,10 +118,10 @@ To handle the JSON payloads, we used the Parson library. This one is not needed
 when we create the JSONs. We have all the JSON formats for this process in the
 file "client.h". The reason for which we included this library is to parse the
 payloads from the server's responses. We use Parson for the next 4 things:
-	-> to extract the value of a string field
-	-> to extract the value of a number field
-	-> to obtain pretty strings that can be understood easily
-	-> to take the value of an array field and to iterate through that vector 
+ -> to extract the value of a string field
+ -> to extract the value of a number field
+ -> to obtain pretty strings that can be understood easily
+ -> to take the value of an array field and to iterate through that vector 
 </pre>
 
 ---
