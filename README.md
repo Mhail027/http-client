@@ -16,16 +16,15 @@ Chapter 1 - The commands' implementation
 
 <img src="media/frozen.jpeg" style="float: left; margin-right: 20px; width: 330px;">
 
-<pre style="font-family: inherit; font-size: inherit; line-height: inherit; color: inherit; background: transparent; border: none">
 In total, the client can use 20 commands, which can be seen in the file "client.h". 19
 of the 20 follow a similar pattern:
-		1. Create a HTTP request. (In some cases, ask additional information to
-		   complete the request.)
-		2. Communicate with the server. (Send the request. + Receive an answer.)
-		3. Print a basic message to resume the received response. The message has
-		   always the format "ERROR: %s" or "SUCCESS: %s".
-		4. Print more specific data from response if it's the case. We need this step
-		   for commands such as "get_users", "get_movie", "get_movies" and so on.
+    1. Create a HTTP request. (In some cases, ask additional information to
+       complete the request.)
+    2. Communicate with the server. (Send the request. + Receive an answer.)
+    3. Print a basic message to resume the received response. The message has
+       always the format "ERROR: %s" or "SUCCESS: %s".
+    4. Print more specific data from response if it's the case. We need this step
+       for commands such as "get_users", "get_movie", "get_movies" and so on.
 </pre>
 
 <pre style="font-family: inherit; font-size: inherit; line-height: inherit; color: inherit; background: transparent; border: none">
