@@ -19,13 +19,13 @@ Chapter 1 - The commands' implementation
 <pre style="font-family: inherit; font-size: inherit; line-height: inherit; color: inherit; background: transparent; border: none">
 In total, the client can use 20 commands, which can be seen in the file "client.h". 19
 of the 20 follow a similar pattern:
-		1. Create a HTTP request. (In some cases, ask additional information to
-		   complete the request.)
-		2. Communicate with the server. (Send the request. + Receive an answer.)
-		3. Print a basic message to resume the received response. The message has
-		   always the format "ERROR: %s" or "SUCCESS: %s".
-		4. Print more specific data from response if it's the case. We need this step
-		   for commands such as "get_users", "get_movie", "get_movies" and so on.
+	1. Create a HTTP request. (In some cases, ask additional information to
+	   complete the request.)
+	2. Communicate with the server. (Send the request. + Receive an answer.)
+	3. Print a basic message to resume the received response. The message has
+	   always the format "ERROR: %s" or "SUCCESS: %s".
+	4. Print more specific data from response if it's the case. We need this step
+	   for commands such as "get_users", "get_movie", "get_movies" and so on.
 </pre>
 
 <pre style="font-family: inherit; font-size: inherit; line-height: inherit; color: inherit; background: transparent; border: none">
@@ -53,41 +53,41 @@ The function basic_execute_command(), which implement the common pattern,
 has the next flow:
 		basic_execute_command() -> get_request() -> read_line(), sometimes
 							 -> send_to_server()
-								     -> receive_from_server()
-								     -> basic_print_http_response_with_content()
-								     -> basic_print_http_response()
-								     -> print_response()
+							 -> receive_from_server()
+							 -> basic_print_http_response_with_content()
+							 -> basic_print_http_response()
+							 -> print_response()
 
 LOGIN_ADMIN:
 	main() -> handle_command() -> handle_client_command() ->
 	-> login_admin() -> basic_execute_command()
-					 -> get_new_cookie()
+			 -> get_new_cookie()
 
 LOGOUT_ADMIN:
 	main() -> handle_command() -> handle_client_command() ->
 	-> logout_admin() -> basic_execute_command()
-					    -> delete_client_info()
+			  -> delete_client_info()
 
 LOGIN:
 	main() -> handle_command() -> handle_client_command() ->
 	-> login() -> basic_execute_command()
-			  -> get_new_cookie()
+		   -> get_new_cookie()
 
 LOGOUT_ADMIN:
 	main() -> handle_command() -> handle_client_command() ->
 	-> logout() -> basic_execute_command()
-			     -> delete_client_info()
+		    -> delete_client_info()
 
 GET_ACCESS
 	main() -> handle_command() -> handle_client_command() ->
 	-> get_access() -> basic_execute_command()
-				     -> get_new_token()
+			-> get_new_token()
 
 ADD_COLLECTION()
 	main() -> handle_command() -> handle_coll_command() ->
 	-> add_collection() -> read_num_movies()
-					     -> read_movies_ids()
-					     -> add_movies_to_new_collection() -> add_movie_to_new_collection()
+			    -> read_movies_ids()
+			    -> add_movies_to_new_collection() -> add_movie_to_new_collection()
 
 All the others commands follow the next "road":
 	main() -> handle_command() -> handle_client_command() /
