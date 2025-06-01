@@ -16,6 +16,7 @@ Chapter 1 - The commands' implementation
 
 <img src="media/frozen.jpeg" style="float: left; margin-right: 20px; width: 330px;">
 
+<pre style="font-family: inherit; font-size: inherit; line-height: inherit; color: inherit; background: transparent; border: none">
 In total, the client can use 20 commands, which can be seen in the file "client.h". 19
 of the 20 follow a similar pattern:
     1. Create a HTTP request. (In some cases, ask additional information to
