@@ -52,7 +52,7 @@ Chapter 2 - Flow of the program
 The function basic_execute_command(), which implement the common pattern,
 has the next flow:
 		basic_execute_command() -> get_request() -> read_line(), sometimes
-								     -> send_to_server()
+							 -> send_to_server()
 								     -> receive_from_server()
 								     -> basic_print_http_response_with_content()
 								     -> basic_print_http_response()
